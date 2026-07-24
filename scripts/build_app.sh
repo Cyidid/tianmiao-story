@@ -93,5 +93,8 @@ COPYFILE_DISABLE=1 ditto --norsrc "$APP_DIR" "$ROOT_DIR/甜喵物语.app"
 
 APP_DIR="$ROOT_DIR/甜喵物语.app"
 clean_app_metadata "$APP_DIR"
+codesign --force --deep --sign - "$APP_DIR" >/dev/null
+clean_app_metadata "$APP_DIR"
+codesign --verify --deep --strict "$APP_DIR"
 echo "Built $APP_DIR"
 rm -rf "$BUILD_ROOT"
