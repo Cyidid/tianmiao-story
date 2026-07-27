@@ -11,7 +11,7 @@ MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 SOURCE_FILE="$ROOT_DIR/Sources/TianMiao/main.swift"
 
-"$PYTHON_BIN" "$ROOT_DIR/scripts/generate_clean_tianmiao_rig.py"
+"$PYTHON_BIN" "$ROOT_DIR/scripts/generate_rig_parts.py"
 
 mkdir -p "$BUILD_ROOT" "$ROOT_DIR/build"
 
