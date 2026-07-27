@@ -11,6 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "assets" / "live2d-source" / "tianmiao"
 LAYERS = OUT / "layers"
 PREVIEWS = OUT / "previews"
+ALPHA = OUT / "alpha"
+GENERATED = OUT / "generated"
 
 SOURCE = ROOT / "Resources" / "normal.png"
 RIG_PARTS = {
@@ -162,6 +164,110 @@ def make_sheet(layers: dict[str, Image.Image]) -> None:
     white.convert("RGB").save(PREVIEWS / "layer-source-sheet-on-white.jpg", quality=94)
 
 
+def fit(image: Image.Image, box: tuple[int, int]) -> Image.Image:
+    copy = image.copy()
+    copy.thumbnail(box, Image.Resampling.LANCZOS)
+    return copy
+
+
+def load_identity_pose() -> Image.Image:
+    model_sheet = ALPHA / "model-sheet.png"
+    if model_sheet.exists():
+        sheet = Image.open(model_sheet).convert("RGBA")
+        first_pose = sheet.crop((0, 0, sheet.width // 5, sheet.height))
+        return trim(first_pose, padding=8)
+    return trim(Image.open(SOURCE).convert("RGBA"), padding=8)
+
+
+def make_blink_pose(source: Image.Image) -> Image.Image:
+    image = source.copy()
+    draw = ImageDraw.Draw(image)
+    w, h = image.size
+    draw.arc((w * 0.30, h * 0.30, w * 0.48, h * 0.42), 190, 350, fill=(42, 42, 42, 255), width=max(3, w // 60))
+    draw.arc((w * 0.53, h * 0.30, w * 0.72, h * 0.42), 190, 350, fill=(42, 42, 42, 255), width=max(3, w // 60))
+    return image
+
+
+def make_tap_pose(source: Image.Image) -> Image.Image:
+    return source.rotate(-8, expand=True, resample=Image.Resampling.BICUBIC)
+
+
+def make_walk_pose(source: Image.Image) -> Image.Image:
+    image = source.copy()
+    draw = ImageDraw.Draw(image)
+    # Keep this as an identity reference, not a fake frame made from the
+    # rejected walking slices that still contain dark matte artifacts.
+    w, h = image.size
+    for x0, y0, x1, y1 in [
+        (w * 0.34, h * 0.76, w * 0.46, h * 0.92),
+        (w * 0.58, h * 0.74, w * 0.70, h * 0.90),
+    ]:
+        draw.arc((x0, y0, x1, y1), 210, 340, fill=(55, 55, 55, 170), width=4)
+    draw.arc((w * 0.05, h * 0.67, w * 0.38, h * 0.93), 18, 146, fill=(55, 55, 55, 150), width=5)
+    return image.rotate(1.8, expand=True, resample=Image.Resampling.BICUBIC)
+
+
+def make_groom_pose(source: Image.Image) -> Image.Image:
+    image = source.copy()
+    paw = Image.open(ROOT / "Resources" / "rig_paw_left.png").convert("RGBA")
+    paw = trim(paw, padding=2).rotate(-18, expand=True, resample=Image.Resampling.BICUBIC)
+    paw.thumbnail((max(48, image.width // 5), max(72, image.height // 4)), Image.Resampling.LANCZOS)
+    image.alpha_composite(paw, (image.width // 2 - paw.width // 2, image.height // 2 - paw.height // 5))
+    return image
+
+
+def make_scratch_pose(source: Image.Image) -> Image.Image:
+    image = source.copy()
+    paw = Image.open(ROOT / "Resources" / "rig_paw_right.png").convert("RGBA")
+    paw = trim(paw, padding=2).rotate(16, expand=True, resample=Image.Resampling.BICUBIC)
+    paw.thumbnail((max(54, image.width // 4), max(82, image.height // 3)), Image.Resampling.LANCZOS)
+    image.alpha_composite(paw, (int(image.width * 0.62), int(image.height * 0.42)))
+    draw = ImageDraw.Draw(image)
+    for offset in [0, 11, 22]:
+        y = int(image.height * 0.45) + offset
+        draw.line((int(image.width * 0.82), y, int(image.width * 0.95), y - 18), fill=(42, 42, 42, 210), width=3)
+    return image
+
+
+def make_identity_locked_motion_reference() -> None:
+    ALPHA.mkdir(parents=True, exist_ok=True)
+    GENERATED.mkdir(parents=True, exist_ok=True)
+    source = load_identity_pose()
+    poses = [
+        ("idle", source),
+        ("blink", trim(make_blink_pose(source), padding=8)),
+        ("tap", trim(make_tap_pose(source), padding=8)),
+        ("walk", trim(make_walk_pose(source), padding=8)),
+        ("groom", trim(make_groom_pose(source), padding=8)),
+        ("scratch", trim(make_scratch_pose(source), padding=8)),
+    ]
+    cell_w, cell_h = 360, 360
+    cols = 3
+    sheet = Image.new("RGBA", (cols * cell_w, 2 * cell_h), (0, 0, 0, 0))
+    labeled = Image.new("RGBA", sheet.size, (0, 255, 0, 255))
+    draw = ImageDraw.Draw(labeled)
+    try:
+        font = ImageFont.truetype("Arial.ttf", 32)
+    except OSError:
+        font = ImageFont.load_default()
+
+    for idx, (label, pose) in enumerate(poses):
+        col = idx % cols
+        row = idx // cols
+        image = fit(pose, (260, 276))
+        x = col * cell_w + (cell_w - image.width) // 2
+        y = row * cell_h + 24
+        sheet.alpha_composite(image, (x, y))
+        labeled.alpha_composite(image, (x, y))
+        text_x = col * cell_w + 24
+        text_y = row * cell_h + cell_h - 54
+        draw.text((text_x, text_y), label, fill=(32, 32, 32, 255), font=font)
+
+    sheet.save(ALPHA / "motion-reference.png")
+    labeled.save(GENERATED / "motion-reference-identity-composite.png")
+    labeled.save(GENERATED / "motion-reference-chroma.png")
+
+
 def write_manifest() -> None:
     lines = [
         "# Tianmiao Live2D Source Package",
@@ -178,6 +284,7 @@ def write_manifest() -> None:
         "- Layer PNGs are auto-cropped from the currently selected cat identity and existing transparent rig parts.",
         "- Small facial parts and overlap boundaries should be cleaned by a Cubism artist before mesh binding.",
         "- Motion reference art is visual guidance only and must not replace the selected cat identity.",
+        "- The current motion reference is identity-locked from alpha/model-sheet.png, not a separate AI-redrawn cat.",
         "",
         "Generated previews:",
         "- alpha/model-sheet.png",
@@ -218,6 +325,7 @@ def main() -> None:
         raise RuntimeError(f"Missing layers: {missing}")
     save_layers(layers)
     make_sheet(layers)
+    make_identity_locked_motion_reference()
     write_manifest()
     print(f"Wrote Live2D source package to {OUT.relative_to(ROOT)}")
 

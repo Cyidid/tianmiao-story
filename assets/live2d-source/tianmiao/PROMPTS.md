@@ -13,12 +13,8 @@ Layout: horizontal character-board layout on a perfectly flat solid #00ff00 chro
 Technical constraints: crisp edges, generous padding around every pose, no white matte, no checkerboard, no watermark, no extra characters, no props.
 ```
 
-## motion-reference
+## rejected motion-reference
 
-```text
-Use case: illustration-story
-Asset type: Live2D Cubism motion reference sheet
-Primary request: Create a high-resolution motion reference sheet for a cute gray-white tabby anime desktop pet cat. The cat has huge round black eyes, white face and chest, gray tabby stripes, pink inner ears, small triangular nose, smiling open triangular mouth, and cheek whiskers. Show six poses of the same cat: idle, blink, tap reaction, walk, groom, scratch. Keep the character consistent across all poses, head mostly upright except tap reaction, body and legs complete, tail visible.
-Layout: horizontal character-board layout on a perfectly flat solid #00ff00 chroma-key background for background removal. Add small English labels: idle, blink, tap, walk, groom, scratch. No decorative background, no shadows, no props, no watermark.
-Technical constraints: crisp hand-drawn anime watercolor/ink style, clean silhouette, no white matte, no green inside the cat, generous spacing between poses.
-```
+The first generated motion-reference image was rejected because it drifted into a different kitten identity. It must not be used for Cubism production.
+
+The current `alpha/motion-reference.png` is generated locally by `scripts/generate_live2d_source_package.py` from the first front-facing cat in `alpha/model-sheet.png`, so all six cells preserve the selected cat identity instead of mixing in another generated kitten.

@@ -51,6 +51,7 @@ Important limitations:
 - Layer PNGs are auto-cropped from the currently selected cat identity and existing transparent rig parts.
 - Small facial parts and overlap boundaries should be cleaned by a Cubism artist before mesh binding.
 - Motion reference art is visual guidance only and must not replace the selected cat identity.
+- The current motion reference is identity-locked from alpha/model-sheet.png, not a separate AI-redrawn cat.
 
 Generated previews:
 - alpha/model-sheet.png
