@@ -1,0 +1,29 @@
+{
+  "assetVersion": "pending-live2d-export",
+  "character": "Tianmiao selected gray-white tabby",
+  "status": "pending_model_export",
+  "requiredFiles": [
+    "tianmiao.model3.json",
+    "tianmiao.moc3",
+    "textures/*.png",
+    "motions/idle.motion3.json",
+    "motions/blink.motion3.json",
+    "motions/tap.motion3.json",
+    "motions/walk.motion3.json",
+    "motions/groom.motion3.json",
+    "motions/scratch.motion3.json"
+  ],
+  "supportedMotions": [
+    "idle",
+    "blink",
+    "tap",
+    "walk",
+    "groom",
+    "scratch"
+  ],
+  "notes": [
+    "The current PNG rig is a temporary fallback only.",
+    "Do not add sleep, roll, hop, or other actions until matching Live2D motion files are exported.",
+    "The app and web preview must consume the same exported model directory."
+  ]
+}

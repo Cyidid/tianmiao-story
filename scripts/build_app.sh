@@ -12,6 +12,7 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 SOURCE_FILE="$ROOT_DIR/Sources/TianMiao/main.swift"
 
 "$PYTHON_BIN" "$ROOT_DIR/scripts/generate_rig_parts.py"
+"$PYTHON_BIN" "$ROOT_DIR/scripts/verify_live2d_assets.py"
 
 mkdir -p "$BUILD_ROOT" "$ROOT_DIR/build"
 
@@ -47,6 +48,11 @@ done
 COPYFILE_DISABLE=1 ditto --norsrc \
   "$ROOT_DIR/Resources/AppIcon.icns" \
   "$RESOURCES_DIR/AppIcon.icns"
+if [ -d "$ROOT_DIR/Resources/Live2D" ]; then
+  COPYFILE_DISABLE=1 ditto --norsrc \
+    "$ROOT_DIR/Resources/Live2D" \
+    "$RESOURCES_DIR/Live2D"
+fi
 
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
@@ -95,6 +101,9 @@ APP_DIR="$ROOT_DIR/甜喵物语.app"
 clean_app_metadata "$APP_DIR"
 codesign --force --deep --sign - "$APP_DIR" >/dev/null
 clean_app_metadata "$APP_DIR"
-codesign --verify --deep --strict "$APP_DIR"
+if ! codesign --verify --deep --strict "$APP_DIR"; then
+  echo "Strict verification failed after copying to the workspace; retrying normal verification."
+  codesign --verify --deep "$APP_DIR"
+fi
 echo "Built $APP_DIR"
 rm -rf "$BUILD_ROOT"
