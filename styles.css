@@ -36,7 +36,7 @@ button { font: inherit; }
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 12px;
-  width: min(860px, calc(100vw - 32px));
+  width: min(620px, calc(100vw - 32px));
   padding: 10px;
   border: 1px solid rgba(44, 42, 38, 0.12);
   border-radius: 8px;
@@ -68,7 +68,7 @@ h1 { margin: 0; color: var(--ink); font-size: clamp(34px, 4.6vw, 58px); line-hei
 
 .action-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   align-items: center;
 }
@@ -177,9 +177,14 @@ h1 { margin: 0; color: var(--ink); font-size: clamp(34px, 4.6vw, 58px); line-hei
   animation: shadow-breathe 2.8s ease-in-out infinite;
 }
 .sitting-rig, .walking-rig, .pet-layer { position: absolute; inset: 0; width: 100%; height: 100%; }
-.sitting-rig, .walking-rig { transform-origin: 50% 82%; }
+.sitting-rig, .walking-rig { transform-origin: 50% 82%; transition: opacity 150ms ease, filter 150ms ease; }
 .walking-rig { opacity: 0; }
 .pet-layer { object-fit: contain; user-select: none; pointer-events: none; transform-origin: 50% 70%; }
+.is-switching .sitting-rig,
+.is-switching .walking-rig {
+  filter: blur(0.7px);
+  opacity: 0.38;
+}
 
 .action-idle .sitting-rig { animation: idle-core 2.8s ease-in-out infinite; }
 .action-idle .sit-rig_head { animation: idle-head 2.8s ease-in-out infinite; }
@@ -196,12 +201,6 @@ h1 { margin: 0; color: var(--ink); font-size: clamp(34px, 4.6vw, 58px); line-hei
 .action-groom .sit-rig_head { animation: groom-head 1.3s ease-in-out; }
 .action-scratch .sit-rig_paw_right { transform-origin: 64% 74%; animation: scratch-paw 180ms ease-in-out 7; }
 .action-scratch .sitting-rig { animation: scratch-core 1.3s ease-in-out; }
-.action-sleep .sitting-rig { animation: sleep-core 3s ease-in-out infinite; }
-.action-sleep .sit-rig_head { animation: sleep-head 3s ease-in-out infinite; }
-.action-sleep .sit-rig_tail { animation: sleep-tail 3s ease-in-out infinite; }
-.action-roll { animation: roll-body 1.55s ease-in-out; }
-.action-hop { animation: hop-body 1.2s ease-in-out; }
-
 @keyframes idle-core { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-2px) scaleY(1.012); } }
 @keyframes idle-head { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(1.2deg); } }
 @keyframes tail-sway { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(6deg); } }
@@ -217,12 +216,6 @@ h1 { margin: 0; color: var(--ink); font-size: clamp(34px, 4.6vw, 58px); line-hei
 @keyframes groom-head { 0%, 100% { transform: rotate(0deg); } 34%, 74% { transform: translateX(-4px) rotate(4deg); } }
 @keyframes scratch-core { 0%, 100% { transform: translateY(0); } 40%, 80% { transform: translateY(3px) scaleY(0.985); } }
 @keyframes scratch-paw { 0%, 100% { transform: translate(0, 0) rotate(0deg); } 50% { transform: translate(7px, -10px) rotate(10deg); } }
-@keyframes sleep-core { 0%, 100% { transform: translateY(6px) scaleY(0.94) scaleX(1.04); } 50% { transform: translateY(4px) scaleY(0.97) scaleX(1.02); } }
-@keyframes sleep-head { 0%, 100% { transform: translateY(4px) rotate(-6deg); } 50% { transform: translateY(2px) rotate(-4deg); } }
-@keyframes sleep-tail { 0%, 100% { transform: rotate(-12deg); } 50% { transform: rotate(-9deg); } }
-@keyframes roll-body { 0%, 100% { transform: rotate(0deg) translateY(0) scale(1); } 30% { transform: rotate(-12deg) translateY(12px) scale(1.08, 0.86); } 62% { transform: rotate(-23deg) translateY(18px) scale(1.15, 0.78); } }
-@keyframes hop-body { 0%, 100% { transform: translateY(0) scale(1); } 18% { transform: translateY(8px) scale(1.06, 0.92); } 48% { transform: translateY(-42px) scale(0.98, 1.05); } 76% { transform: translateY(4px) scale(1.08, 0.9); } }
-
 @media (max-width: 860px) {
   .page-shell { padding: 14px; }
   .control-panel {
@@ -244,7 +237,7 @@ h1 { margin: 0; color: var(--ink); font-size: clamp(34px, 4.6vw, 58px); line-hei
 }
 
 @media (max-width: 520px) {
-  .action-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .action-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .desktop-scene { min-height: 460px; }
   .bubble { bottom: 292px; transform: translateX(-8px); }
   .pet-rig { bottom: 58px; width: min(280px, 82vw); }
