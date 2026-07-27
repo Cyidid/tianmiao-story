@@ -3,58 +3,43 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>甜喵物语在线测试</title>
-    <meta name="description" content="服务器版甜喵桌宠动作预览。" />
-    <link rel="icon" href="pet/normal.png?v=stable-4ae4e83" />
-    <link rel="stylesheet" href="styles.css?v=stable-4ae4e83" />
+    <title>甜喵 Live2D 在线测试</title>
+    <meta name="description" content="甜喵 Live2D 模型接入状态预览。" />
+    <link rel="icon" href="pet/normal.png?v=live2d-gate" />
+    <link rel="stylesheet" href="styles.css?v=live2d-gate" />
   </head>
   <body>
     <main class="page-shell">
-      <section class="control-panel" aria-label="甜喵测试控制">
+      <section class="control-panel" aria-label="甜喵 Live2D 状态">
         <div>
           <p class="eyebrow">Tianmiao Story</p>
-          <h1>甜喵物语在线测试</h1>
-          <p class="intro">这是服务器版动作预览，用同一套透明分层素材模拟桌宠的待机、行走和互动动作。</p>
+          <h1>甜喵 Live2D 在线测试</h1>
+          <p class="intro">这里以后只渲染将进入 macOS app 的同一套 Live2D 模型。模型导出前，不再用 PNG 切片伪造动作。</p>
         </div>
         <div class="status-strip">
-          <span>当前动作</span>
-          <strong id="actionName">待机</strong>
-          <small id="actionNote">轻微呼吸，尾巴小幅摆动</small>
+          <span>当前状态</span>
+          <strong>模型待导出</strong>
+          <small>已停止假动作预览</small>
         </div>
-        <div class="action-grid" role="group" aria-label="选择甜喵动作">
-          <button class="active" data-action="idle">待机</button>
-          <button data-action="walk">行走</button>
-          <button data-action="groom">梳毛</button>
-          <button data-action="scratch">挠抓</button>
+        <div class="action-grid" role="group" aria-label="Live2D 动作清单">
+          <button disabled>待机</button>
+          <button disabled>眨眼</button>
+          <button disabled>点击反馈</button>
+          <button disabled>行走</button>
+          <button disabled>梳毛</button>
+          <button disabled>挠抓</button>
         </div>
       </section>
-      <section class="stage-panel" aria-label="甜喵动作预览">
+      <section class="stage-panel" aria-label="甜喵模型预览">
         <div class="desktop-scene">
           <div class="desktop-bar"><span></span><span></span><span></span></div>
-          <div id="bubble" class="bubble" aria-live="polite">我在这里呀</div>
-          <div id="petRig" class="pet-rig action-idle">
+          <div class="bubble" aria-live="polite">Live2D 模型待接入</div>
+          <div class="pet-static-wrap">
             <div class="pet-shadow"></div>
-            <div class="sitting-rig">
-              <img class="pet-layer sit-rig_tail" src="pet/rig_tail.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer sit-rig_haunches" src="pet/rig_haunches.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer sit-rig_body" src="pet/rig_body.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer sit-rig_paw_left" src="pet/rig_paw_left.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer sit-rig_paw_right" src="pet/rig_paw_right.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer sit-rig_head" src="pet/rig_head.png?v=stable-4ae4e83" alt="" />
-            </div>
-            <div class="walking-rig">
-              <img class="pet-layer walk-walk_tail" src="pet/walk_tail.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer walk-walk_rear_leg" src="pet/walk_rear_leg.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer walk-walk_hind_leg" src="pet/walk_hind_leg.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer walk-walk_front_leg" src="pet/walk_front_leg.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer walk-walk_body" src="pet/walk_body.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer walk-walk_front_down_leg" src="pet/walk_front_down_leg.png?v=stable-4ae4e83" alt="" />
-              <img class="pet-layer walk-walk_head" src="pet/walk_head.png?v=stable-4ae4e83" alt="" />
-            </div>
+            <img class="pet-static" src="pet/normal.png?v=live2d-gate" alt="当前指定灰白虎斑甜喵形象" />
           </div>
         </div>
       </section>
     </main>
-    <script src="script.js?v=stable-4ae4e83"></script>
   </body>
 </html>
