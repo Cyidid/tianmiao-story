@@ -49,8 +49,15 @@ struct Live2DAssetStatus {
         missingFiles.isEmpty
     }
 
+    var isNativeRendererAvailable: Bool {
+        false
+    }
+
     var menuLine: String {
-        isReady ? "Live2D 模型：已就绪" : "Live2D 模型：待导出"
+        if !isReady {
+            return "Live2D 模型：待导出"
+        }
+        return isNativeRendererAvailable ? "Live2D 模型：已就绪" : "Live2D 模型：待接入渲染器"
     }
 }
 
