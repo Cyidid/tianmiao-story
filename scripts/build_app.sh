@@ -67,8 +67,10 @@ RESOURCES_DIR="$CONTENTS_DIR/Resources"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 swiftc "$SOURCE_FILE" \
+  -target arm64-apple-macos13.0 \
   -framework Cocoa \
   -framework QuartzCore \
+  -framework ServiceManagement \
   -framework UserNotifications \
   -o "$MACOS_DIR/tianmiao"
 
@@ -110,6 +112,8 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
   <string>$APP_BUILD</string>
   <key>LSUIElement</key>
   <true/>
+  <key>LSMinimumSystemVersion</key>
+  <string>13.0</string>
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSUserNotificationAlertStyle</key>

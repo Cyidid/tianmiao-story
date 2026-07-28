@@ -1,5 +1,6 @@
 import Cocoa
 import QuartzCore
+import ServiceManagement
 import UserNotifications
 
 enum PetMode: String {
@@ -1108,6 +1109,11 @@ final class PetController: NSObject {
                 self?.startFocus()
             }
         }
+        if ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_REMINDER"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+                self?.showReminder("提醒降级测试")
+            }
+        }
     }
 
     func makeMenu() -> NSMenu {
@@ -1146,6 +1152,9 @@ final class PetController: NSObject {
         menu.addItem(item("置顶显示", action: #selector(toggleAlwaysOnTop), checked: settings.alwaysOnTop))
         menu.addItem(item("休息提醒", action: #selector(toggleReminders), checked: settings.remindersEnabled))
         menu.addItem(item("勿扰模式", action: #selector(toggleDoNotDisturb), checked: settings.doNotDisturb))
+        menu.addItem(item("登录时启动",
+                          action: #selector(toggleLaunchAtLogin),
+                          checked: SMAppService.mainApp.status == .enabled))
         if focusSession.isActive {
             let focusStatus = NSMenuItem(title: focusSession.remainingLine, action: nil, keyEquivalent: "")
             focusStatus.isEnabled = false
@@ -1213,11 +1222,19 @@ final class PetController: NSObject {
     }
 
     private func startGentleReminders() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
         reminderTimer?.invalidate()
         guard settings.remindersEnabled else { return }
+        requestNotificationAuthorizationIfNeeded()
         reminderTimer = Timer.scheduledTimer(withTimeInterval: 45 * 60, repeats: true) { [weak self] _ in
             self?.showReminder("休息一下，喝口水")
+        }
+    }
+
+    private func requestNotificationAuthorizationIfNeeded() {
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .notDetermined else { return }
+            center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
         }
     }
 
@@ -1364,15 +1381,42 @@ final class PetController: NSObject {
 
     private func showReminder(_ message: String) {
         guard settings.remindersEnabled, !settings.doNotDisturb else { return }
-        let content = UNMutableNotificationContent()
-        content.title = "甜喵物语"
-        content.body = message
-        content.sound = .default
-        let request = UNNotificationRequest(identifier: "tianmiao-break-\(Date().timeIntervalSince1970)",
-                                            content: content,
-                                            trigger: nil)
-        UNUserNotificationCenter.current().add(request)
+        let center = UNUserNotificationCenter.current()
+        center.getNotificationSettings { [weak self] notificationSettings in
+            guard let self else { return }
+            switch notificationSettings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                let content = UNMutableNotificationContent()
+                content.title = "甜喵物语"
+                content.body = message
+                content.sound = .default
+                let request = UNNotificationRequest(
+                    identifier: "tianmiao-break-\(Date().timeIntervalSince1970)",
+                    content: content,
+                    trigger: nil
+                )
+                center.add(request) { [weak self] error in
+                    guard error != nil else { return }
+                    DispatchQueue.main.async {
+                        self?.showReminderFallback(message)
+                    }
+                }
+            case .denied, .notDetermined:
+                DispatchQueue.main.async {
+                    self.showReminderFallback(message)
+                }
+            @unknown default:
+                DispatchQueue.main.async {
+                    self.showReminderFallback(message)
+                }
+            }
+        }
         catView.play(.blink, frameDuration: 0.12, loops: 2)
+    }
+
+    private func showReminderFallback(_ message: String) {
+        guard settings.remindersEnabled, !settings.doNotDisturb else { return }
+        showBubble(message, seconds: 5.0)
     }
 
     private func applySettings() {
@@ -1541,6 +1585,33 @@ final class PetController: NSObject {
             bubbleWindow.orderOut(nil)
         } else {
             showBubble("勿扰已关闭")
+        }
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        let service = SMAppService.mainApp
+        do {
+            switch service.status {
+            case .enabled:
+                try service.unregister()
+                showBubble("已关闭登录时启动")
+            case .requiresApproval:
+                SMAppService.openSystemSettingsLoginItems()
+                showBubble("请在系统设置中允许甜喵物语")
+            case .notRegistered, .notFound:
+                try service.register()
+                if service.status == .requiresApproval {
+                    SMAppService.openSystemSettingsLoginItems()
+                    showBubble("请在系统设置中允许甜喵物语")
+                } else {
+                    showBubble("已开启登录时启动")
+                }
+            @unknown default:
+                SMAppService.openSystemSettingsLoginItems()
+                showBubble("请在系统设置中检查登录项")
+            }
+        } catch {
+            showBubble("登录启动设置失败：\(error.localizedDescription)", seconds: 5.0)
         }
     }
 
