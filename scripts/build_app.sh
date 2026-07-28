@@ -102,19 +102,18 @@ swiftc "${SOURCE_FILES[@]}" \
 find "$RESOURCES_DIR" -type f -name '*.png' -delete
 find "$RESOURCES_DIR" -type f -name '*.icns' -delete
 for sprite in "$ROOT_DIR/Resources/"*.png; do
-  COPYFILE_DISABLE=1 ditto --norsrc "$sprite" "$RESOURCES_DIR/$(basename "$sprite")"
+  COPYFILE_DISABLE=1 cp "$sprite" "$RESOURCES_DIR/$(basename "$sprite")"
 done
 if [ -d "$ROOT_DIR/Resources/Poses" ]; then
-  COPYFILE_DISABLE=1 ditto --norsrc \
-    "$ROOT_DIR/Resources/Poses" \
-    "$RESOURCES_DIR/Poses"
+  COPYFILE_DISABLE=1 cp -R "$ROOT_DIR/Resources/Poses" "$RESOURCES_DIR/Poses"
 fi
-COPYFILE_DISABLE=1 ditto --norsrc \
-  "$ROOT_DIR/Resources/AppIcon.icns" \
-  "$RESOURCES_DIR/AppIcon.icns"
-COPYFILE_DISABLE=1 ditto --norsrc \
-  "$SPARKLE_FRAMEWORK" \
-  "$FRAMEWORKS_DIR/Sparkle.framework"
+COPYFILE_DISABLE=1 cp "$ROOT_DIR/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
+
+# Synced folders may attach FinderInfo/file-provider attributes to nested
+# Sparkle bundles. A metadata-free tar stream preserves symlinks and executable
+# modes while preventing those attributes from invalidating strict codesign.
+COPYFILE_DISABLE=1 tar -C "$SPARKLE_ROOT" -cf - Sparkle.framework |
+  COPYFILE_DISABLE=1 tar -C "$FRAMEWORKS_DIR" -xf -
 
 cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -175,7 +174,7 @@ fi
 # This copy is a launch convenience only. Synced Documents directories may
 # immediately attach Finder/file-provider metadata, so release verification
 # always uses BUILD_ARCHIVE instead.
-COPYFILE_DISABLE=1 ditto --norsrc "$APP_DIR" "$ROOT_DIR/甜喵物语.app"
+COPYFILE_DISABLE=1 cp -R "$APP_DIR" "$ROOT_DIR/甜喵物语.app"
 echo "Built $ROOT_DIR/甜喵物语.app"
 echo "Verified clean build archive $BUILD_ARCHIVE"
 rm -rf "$BUILD_ROOT"
