@@ -8,10 +8,13 @@ SPARKLE_CONFIG_FILE="$ROOT_DIR/Config/sparkle.env"
 APP_DIR="$ROOT_DIR/甜喵物语.app"
 BUILD_ROOT="${TMPDIR:-/tmp}/tianmiao-build.$$"
 BUILD_APP_DIR="$BUILD_ROOT/甜喵物语.app"
+BUILD_VERIFY_DIR="$BUILD_ROOT/verify"
+BUILD_ARCHIVE="$ROOT_DIR/build/甜喵物语-clean-build.zip"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 SOURCE_FILE="$ROOT_DIR/Sources/TianMiao/main.swift"
+CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:--}"
 
 if [ ! -f "$VERSION_FILE" ]; then
   echo "Missing version configuration: $VERSION_FILE" >&2
@@ -62,7 +65,12 @@ sign_and_verify() {
   local attempt
   for attempt in 1 2 3; do
     clean_app_metadata "$target"
-    if codesign --force --deep --sign - "$target" >/dev/null 2>&1 &&
+    if [ "$CODE_SIGN_IDENTITY" = "-" ]; then
+      codesign_args=(--force --deep --sign -)
+    else
+      codesign_args=(--force --deep --options runtime --timestamp --sign "$CODE_SIGN_IDENTITY")
+    fi
+    if codesign "${codesign_args[@]}" "$target" >/dev/null 2>&1 &&
        codesign --verify --deep --strict "$target"; then
       return 0
     fi
@@ -155,14 +163,20 @@ PLIST
 
 sign_and_verify "$APP_DIR"
 
+rm -f "$BUILD_ARCHIVE"
+COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "$APP_DIR" "$BUILD_ARCHIVE"
+mkdir -p "$BUILD_VERIFY_DIR"
+COPYFILE_DISABLE=1 ditto -x -k --norsrc "$BUILD_ARCHIVE" "$BUILD_VERIFY_DIR"
+codesign --verify --deep --strict "$BUILD_VERIFY_DIR/甜喵物语.app"
+
 if [ -d "$ROOT_DIR/甜喵物语.app" ]; then
   mv "$ROOT_DIR/甜喵物语.app" "$ROOT_DIR/build/甜喵物语.app.previous.$$"
 fi
 
-# Moving the already-clean bundle avoids reintroducing Finder/file-provider
-# metadata when the repository lives in a synced Documents directory.
-mv "$APP_DIR" "$ROOT_DIR/甜喵物语.app"
-APP_DIR="$ROOT_DIR/甜喵物语.app"
-sign_and_verify "$APP_DIR"
-echo "Built $APP_DIR"
+# This copy is a launch convenience only. Synced Documents directories may
+# immediately attach Finder/file-provider metadata, so release verification
+# always uses BUILD_ARCHIVE instead.
+COPYFILE_DISABLE=1 ditto --norsrc "$APP_DIR" "$ROOT_DIR/甜喵物语.app"
+echo "Built $ROOT_DIR/甜喵物语.app"
+echo "Verified clean build archive $BUILD_ARCHIVE"
 rm -rf "$BUILD_ROOT"

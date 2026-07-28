@@ -55,6 +55,15 @@
 ```
 
 脚本会重新构建应用，在 `dist/` 生成带版本号的 ZIP 和 SHA-256 文件，并重新解压检查签名及版本号。
+该脚本生成的是 ad-hoc 签名开发包，不能用于 Sparkle 正式自动更新。
+
+正式自动更新发布必须先在环境中提供 `DEVELOPER_ID_APPLICATION` 和 `NOTARY_PROFILE`，然后运行：
+
+```bash
+./scripts/package_signed_release.sh
+```
+
+正式脚本会在构建前验证 Developer ID 和 notarization Keychain 凭据；缺少任一项都会立即失败。通过后才执行 hardened runtime 签名、公证、stapling、Sparkle EdDSA 签名和 appcast 生成。
 
 ## 文件结构
 

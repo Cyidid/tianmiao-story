@@ -25,6 +25,7 @@ fi
 ARCHIVE_NAME="tianmiao-story-macos-v${APP_VERSION}.zip"
 ARCHIVE_PATH="$DIST_DIR/$ARCHIVE_NAME"
 APP_PATH="$ROOT_DIR/甜喵物语.app"
+BUILD_ARCHIVE="$ROOT_DIR/build/甜喵物语-clean-build.zip"
 
 cleanup() {
   rm -rf "$VERIFY_ROOT"
@@ -35,8 +36,7 @@ trap cleanup EXIT
 mkdir -p "$DIST_DIR" "$VERIFY_ROOT"
 rm -f "$ARCHIVE_PATH"
 
-COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "$APP_PATH" "$ARCHIVE_PATH"
-COPYFILE_DISABLE=1 ditto -x -k --norsrc "$ARCHIVE_PATH" "$VERIFY_ROOT"
+COPYFILE_DISABLE=1 ditto -x -k --norsrc "$BUILD_ARCHIVE" "$VERIFY_ROOT"
 
 VERIFIED_APP="$VERIFY_ROOT/甜喵物语.app"
 codesign --verify --deep --strict "$VERIFIED_APP"
@@ -53,6 +53,7 @@ if [ "$verified_version" != "$APP_VERSION" ] || [ "$verified_build" != "$APP_BUI
   exit 1
 fi
 
+COPYFILE_DISABLE=1 ditto -c -k --norsrc --keepParent "$VERIFIED_APP" "$ARCHIVE_PATH"
 checksum=$(shasum -a 256 "$ARCHIVE_PATH" | awk '{print $1}')
 printf 'Packaged %s (%s)\nSHA256 %s\n' "$APP_VERSION" "$APP_BUILD" "$checksum"
 printf '%s\n' "$checksum" > "$ARCHIVE_PATH.sha256"
