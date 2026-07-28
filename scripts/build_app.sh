@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
+VERSION_FILE="$ROOT_DIR/Config/version.env"
 APP_DIR="$ROOT_DIR/甜喵物语.app"
 BUILD_ROOT="${TMPDIR:-/tmp}/tianmiao-build.$$"
 BUILD_APP_DIR="$BUILD_ROOT/甜喵物语.app"
@@ -10,6 +11,22 @@ CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
 SOURCE_FILE="$ROOT_DIR/Sources/TianMiao/main.swift"
+
+if [ ! -f "$VERSION_FILE" ]; then
+  echo "Missing version configuration: $VERSION_FILE" >&2
+  exit 1
+fi
+
+# shellcheck source=/dev/null
+source "$VERSION_FILE"
+if [[ ! "${APP_VERSION:-}" =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+  echo "APP_VERSION must be a numeric dotted version." >&2
+  exit 1
+fi
+if [[ ! "${APP_BUILD:-}" =~ ^[1-9][0-9]*$ ]]; then
+  echo "APP_BUILD must be a positive integer." >&2
+  exit 1
+fi
 
 "$PYTHON_BIN" "$ROOT_DIR/scripts/generate_rig_parts.py"
 "$PYTHON_BIN" "$ROOT_DIR/scripts/verify_live2d_assets.py"
@@ -25,6 +42,21 @@ clean_app_metadata() {
   xattr -rd 'com.apple.fileprovider.fpfs#P' "$target" 2>/dev/null || true
   xattr -rd com.apple.ResourceFork "$target" 2>/dev/null || true
   xattr -rd com.apple.provenance "$target" 2>/dev/null || true
+}
+
+sign_and_verify() {
+  local target="$1"
+  local attempt
+  for attempt in 1 2 3; do
+    clean_app_metadata "$target"
+    if codesign --force --deep --sign - "$target" >/dev/null 2>&1 &&
+       codesign --verify --deep --strict "$target"; then
+      return 0
+    fi
+    echo "Strict signing attempt $attempt failed for $target; retrying metadata cleanup." >&2
+  done
+  echo "Unable to strictly sign $target after 3 attempts." >&2
+  return 1
 }
 
 APP_DIR="$BUILD_APP_DIR"
@@ -54,7 +86,7 @@ if [ -d "$ROOT_DIR/Resources/Live2D" ]; then
     "$RESOURCES_DIR/Live2D"
 fi
 
-cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
+cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -73,9 +105,9 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>3.18</string>
+  <string>$APP_VERSION</string>
   <key>CFBundleVersion</key>
-  <string>50</string>
+  <string>$APP_BUILD</string>
   <key>LSUIElement</key>
   <true/>
   <key>NSHighResolutionCapable</key>
@@ -88,9 +120,7 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-clean_app_metadata "$APP_DIR"
-codesign --force --deep --sign - "$APP_DIR" >/dev/null
-codesign --verify --deep --strict "$APP_DIR"
+sign_and_verify "$APP_DIR"
 
 if [ -d "$ROOT_DIR/甜喵物语.app" ]; then
   mv "$ROOT_DIR/甜喵物语.app" "$ROOT_DIR/build/甜喵物语.app.previous.$$"
@@ -100,8 +130,6 @@ fi
 # metadata when the repository lives in a synced Documents directory.
 mv "$APP_DIR" "$ROOT_DIR/甜喵物语.app"
 APP_DIR="$ROOT_DIR/甜喵物语.app"
-clean_app_metadata "$APP_DIR"
-codesign --force --deep --sign - "$APP_DIR" >/dev/null
-codesign --verify --deep --strict "$APP_DIR"
+sign_and_verify "$APP_DIR"
 echo "Built $APP_DIR"
 rm -rf "$BUILD_ROOT"

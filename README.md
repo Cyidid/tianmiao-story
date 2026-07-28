@@ -41,10 +41,12 @@
 ```
 
 构建结果会生成本地 `甜喵物语.app`。该目录是构建产物，不提交到仓库；发布版请从 GitHub Releases 下载 zip。
+应用版本与构建号统一维护在 `Config/version.env`，正式发布前只需更新这一处。
 
 ## 文件结构
 
 - `Sources/TianMiao/main.swift`: 当前可维护源码。
+- `Config/version.env`: 应用版本号与构建号。
 - `Resources/`: 应用运行时使用的图片帧和 `AppIcon.icns`。
 - `assets/source/multiview/`: 多角度动漫源图。
 - `scripts/`: 构建、素材生成和图标生成脚本。
