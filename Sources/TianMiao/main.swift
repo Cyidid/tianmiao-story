@@ -1126,6 +1126,7 @@ final class PetController: NSObject {
     private var reminderTimer: Timer?
     private var decayTimer: Timer?
     private var focusTimer: Timer?
+    private var previewTimer: Timer?
     private var velocity = CGVector(dx: -1.45, dy: 0)
     private var isRoamWalking = true
     private var gaitPhase: CGFloat = 0
@@ -1168,6 +1169,14 @@ final class PetController: NSObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.pauseMovement()
                 self?.catView.runActionPreview(named: action)
+                if ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_LOOP"] == "1" {
+                    self?.previewTimer = Timer.scheduledTimer(
+                        withTimeInterval: 2.4,
+                        repeats: true
+                    ) { [weak self] _ in
+                        self?.catView.runActionPreview(named: action)
+                    }
+                }
             }
         }
         if ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_FOCUS"] == "1" {
