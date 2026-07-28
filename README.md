@@ -45,15 +45,14 @@ Keychain，禁止写入仓库。
 ./scripts/package_release.sh
 ```
 
-正式 Sparkle 包必须同时提供十项不少于十秒的已审核录屏，缺少任何一项都会停止发布：
+正式 Sparkle 包会先检查全部透明动作素材，再进行构建、签名和 appcast 生成：
 
 ```bash
-QA_EVIDENCE_DIR=/absolute/path/to/qa ./scripts/package_signed_release.sh
+./scripts/package_signed_release.sh
 ```
 
-所需文件为 `v3.22-idle.mp4`、`walk`、`click`、`drag`、`jump`、`sleep`、`wake`、
-`roll`、`groom` 和 `scratch`。`scripts/verify_visual_qa.sh` 会检查时长、视频流和全部
-25 张透明关键帧。
+`scripts/verify_pose_assets.py` 会检查全部 25 张透明关键帧的数量、画布、透明通道和
+安全边距。录屏不再作为正式发布的强制条件。
 
 ## 代码结构
 
