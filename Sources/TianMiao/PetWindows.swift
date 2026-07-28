@@ -21,7 +21,9 @@ final class TianMiaoWindow: NSWindow {
 final class BubbleWindow: NSWindow {
     private let label = NSTextField(labelWithString: "")
     private let bubbleLayer = CAShapeLayer()
-    private let font = NSFont.systemFont(ofSize: 10.5, weight: .medium)
+    private let font = NSFont(name: "Wawati SC", size: 12)
+        ?? NSFont(name: "Hannotate SC", size: 11.5)
+        ?? NSFont.systemFont(ofSize: 11.5, weight: .semibold)
     private var hideWorkItem: DispatchWorkItem?
 
     init() {
@@ -109,4 +111,3 @@ final class BubbleWindow: NSWindow {
         setFrameOrigin(origin)
     }
 }
-

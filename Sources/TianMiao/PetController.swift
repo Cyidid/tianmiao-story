@@ -139,7 +139,20 @@ final class PetController: NSObject {
         for menuItem in menu.items where menuItem.action != nil && menuItem.target == nil {
             menuItem.target = self
         }
+        applyCuteMenuTypography(to: menu)
         return menu
+    }
+
+    private func applyCuteMenuTypography(to menu: NSMenu) {
+        let font = NSFont(name: "Wawati SC", size: 14)
+            ?? NSFont(name: "Hannotate SC", size: 13.5)
+            ?? NSFont.systemFont(ofSize: 13.5, weight: .semibold)
+        for menuItem in menu.items where !menuItem.isSeparatorItem && !menuItem.title.isEmpty {
+            menuItem.attributedTitle = NSAttributedString(
+                string: menuItem.title,
+                attributes: [.font: font]
+            )
+        }
     }
 
     private func item(_ title: String, action: Selector, checked: Bool) -> NSMenuItem {
@@ -640,4 +653,3 @@ final class PetController: NSObject {
         NSApplication.shared.terminate(nil)
     }
 }
-

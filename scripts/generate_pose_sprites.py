@@ -15,8 +15,10 @@ CANVAS = (420, 420)
 
 # Each crop contains exactly one pose from the approved character sheet.
 POSE_BOXES = {
-    "sit_happy": (34, 20, 326, 374),
-    "sit_calm": (872, 18, 1175, 372),
+    # Use the compact seated pose from the same row as the movement poses.
+    # The former top-row seated poses had a much larger head, which caused a
+    # visible size jump whenever the cat started or stopped moving.
+    "sit_compact": (280, 532, 475, 815),
     "walk_contact": (455, 548, 690, 807),
     "walk_passing": (655, 546, 925, 806),
     "walk_reach": (850, 548, 1190, 811),
@@ -29,15 +31,14 @@ POSE_BOXES = {
 }
 
 SEQUENCES = {
-    "idle": ["sit_happy", "sit_calm"],
+    "idle": ["sit_compact", "sit_compact"],
     "walk": ["walk_contact", "walk_passing", "walk_reach", "walk_passing"],
     "jump": ["crouch", "walk_contact", "walk_passing", "crouch"],
     "sleep": ["sleep", "sleep"],
-    "groom": ["sit_calm", "groom", "groom", "sit_calm"],
-    "scratch": ["sit_calm", "scratch", "scratch", "sit_calm"],
-    "roll": ["sit_calm", "roll_side", "roll_back", "roll_side", "sit_calm"],
+    "groom": ["sit_compact", "groom", "groom", "sit_compact"],
+    "scratch": ["sit_compact", "scratch", "scratch", "sit_compact"],
+    "roll": ["sit_compact", "roll_side", "roll_back", "roll_side", "sit_compact"],
 }
-
 
 def main() -> int:
     sheet = Image.open(SHEET_PATH).convert("RGBA")

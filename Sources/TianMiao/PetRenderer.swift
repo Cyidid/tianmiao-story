@@ -111,10 +111,9 @@ final class CatView: NSView {
         rootLayer.sublayerTransform = CATransform3DIdentity
         rootLayer.sublayerTransform.m34 = -1.0 / 700.0
 
-        shadowLayer.backgroundColor = NSColor.black.withAlphaComponent(0.3).cgColor
-        shadowLayer.opacity = 0.7
-        shadowLayer.masksToBounds = true
-        rootLayer.addSublayer(shadowLayer)
+        // The character art already establishes foot contact. A synthetic oval
+        // looked like a platform stuck under the paws, so it is intentionally
+        // not attached to the visible layer tree.
 
         poseLayer.contentsGravity = .resizeAspect
         poseLayer.minificationFilter = .trilinear
@@ -800,4 +799,3 @@ final class CatView: NSView {
         }
     }
 }
-
