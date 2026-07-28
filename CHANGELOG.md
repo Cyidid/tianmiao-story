@@ -1,5 +1,17 @@
 # 更新记录
 
+## v3.21（未发布）
+
+- 固定接入 Sparkle 2.9.4，提供应用内“检查更新”和默认每日后台检查。
+- 使用固定 SHA-256 下载 Sparkle，并将 framework、Updater 和 XPC 服务嵌入应用。
+- 创建项目独立的 Ed25519 更新签名密钥；仓库只保存公钥，私钥保留在发布者 Keychain。
+- 正式发布脚本强制验证 Developer ID、hardened runtime、notarization、stapling 和 Sparkle appcast 签名。
+
+### 发布阻塞
+
+- 当前机器没有 Developer ID Application 证书和 notarization Keychain profile。
+- 在这两项准备完成并通过真实升级测试前，v3.21 不得推送为正式版本或创建 Release。
+
 ## v3.20
 
 - 新增原生跳跃、睡眠和打滚动作，并提供右键菜单及自动预览入口。

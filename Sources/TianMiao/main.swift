@@ -1120,6 +1120,11 @@ final class PetController: NSObject {
                 self?.showReminder("提醒降级测试")
             }
         }
+        if ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_UPDATE_CHECK"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
+                self?.updaterController.checkForUpdates(nil)
+            }
+        }
     }
 
     func makeMenu() -> NSMenu {
