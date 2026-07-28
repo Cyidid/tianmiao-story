@@ -13,7 +13,7 @@ BUILD_ARCHIVE="$ROOT_DIR/build/甜喵物语-clean-build.zip"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
-SOURCE_FILE="$ROOT_DIR/Sources/TianMiao/main.swift"
+SOURCE_FILES=("$ROOT_DIR/Sources/TianMiao/"*.swift)
 CODE_SIGN_IDENTITY="${CODE_SIGN_IDENTITY:--}"
 
 if [ ! -f "$VERSION_FILE" ]; then
@@ -87,7 +87,7 @@ FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
 
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR"
 
-swiftc "$SOURCE_FILE" \
+swiftc "${SOURCE_FILES[@]}" \
   -target arm64-apple-macos13.0 \
   -F "$SPARKLE_ROOT" \
   -framework Cocoa \
