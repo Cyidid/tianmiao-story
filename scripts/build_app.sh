@@ -45,7 +45,6 @@ SPARKLE_ROOT="$("$ROOT_DIR/scripts/fetch_sparkle.sh")"
 SPARKLE_FRAMEWORK="$SPARKLE_ROOT/Sparkle.framework"
 
 "$PYTHON_BIN" "$ROOT_DIR/scripts/generate_rig_parts.py"
-"$PYTHON_BIN" "$ROOT_DIR/scripts/verify_live2d_assets.py"
 
 mkdir -p "$BUILD_ROOT" "$ROOT_DIR/build"
 
@@ -105,14 +104,14 @@ find "$RESOURCES_DIR" -type f -name '*.icns' -delete
 for sprite in "$ROOT_DIR/Resources/"*.png; do
   COPYFILE_DISABLE=1 ditto --norsrc "$sprite" "$RESOURCES_DIR/$(basename "$sprite")"
 done
+if [ -d "$ROOT_DIR/Resources/Poses" ]; then
+  COPYFILE_DISABLE=1 ditto --norsrc \
+    "$ROOT_DIR/Resources/Poses" \
+    "$RESOURCES_DIR/Poses"
+fi
 COPYFILE_DISABLE=1 ditto --norsrc \
   "$ROOT_DIR/Resources/AppIcon.icns" \
   "$RESOURCES_DIR/AppIcon.icns"
-if [ -d "$ROOT_DIR/Resources/Live2D" ]; then
-  COPYFILE_DISABLE=1 ditto --norsrc \
-    "$ROOT_DIR/Resources/Live2D" \
-    "$RESOURCES_DIR/Live2D"
-fi
 COPYFILE_DISABLE=1 ditto --norsrc \
   "$SPARKLE_FRAMEWORK" \
   "$FRAMEWORKS_DIR/Sparkle.framework"

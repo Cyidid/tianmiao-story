@@ -1,4 +1,4 @@
-# Tianmiao Live2D Native SDK Adapter
+# Tianmiao Experimental Live2D Native SDK Adapter
 
 The macOS app reserves `Resources/Live2D/Tianmiao/` for a real Cubism export, but this repository does not vendor the official Live2D Cubism Native SDK.
 

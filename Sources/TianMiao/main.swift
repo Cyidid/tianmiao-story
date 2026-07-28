@@ -21,49 +21,19 @@ enum PetMood: String {
     case roll
 }
 
-struct Live2DAssetStatus {
-    static let modelSubdirectory = "Live2D/Tianmiao"
-    static let modelName = "tianmiao"
-    static let requiredMotions = ["idle", "blink", "tap", "walk", "groom", "scratch"]
+enum PetState: String {
+    case idle
+    case walking
+    case sleeping
+}
 
-    let modelURL: URL?
-    let missingFiles: [String]
-
-    static func current(bundle: Bundle = .main) -> Live2DAssetStatus {
-        var missing: [String] = []
-        let modelURL = bundle.url(forResource: modelName,
-                                  withExtension: "model3.json",
-                                  subdirectory: modelSubdirectory)
-        if modelURL == nil {
-            missing.append("\(modelSubdirectory)/\(modelName).model3.json")
-        }
-        if bundle.url(forResource: modelName, withExtension: "moc3", subdirectory: modelSubdirectory) == nil {
-            missing.append("\(modelSubdirectory)/\(modelName).moc3")
-        }
-        for motion in requiredMotions {
-            if bundle.url(forResource: motion,
-                          withExtension: "motion3.json",
-                          subdirectory: "\(modelSubdirectory)/motions") == nil {
-                missing.append("\(modelSubdirectory)/motions/\(motion).motion3.json")
-            }
-        }
-        return Live2DAssetStatus(modelURL: modelURL, missingFiles: missing)
-    }
-
-    var isReady: Bool {
-        missingFiles.isEmpty
-    }
-
-    var isNativeRendererAvailable: Bool {
-        false
-    }
-
-    var menuLine: String {
-        if !isReady {
-            return "Live2D 模型：待导出"
-        }
-        return isNativeRendererAvailable ? "Live2D 模型：已就绪" : "Live2D 模型：待接入渲染器"
-    }
+enum PetAction: String {
+    case blink
+    case react
+    case groom
+    case scratch
+    case jump
+    case roll
 }
 
 struct PetSettings {
@@ -88,9 +58,9 @@ struct PetSettings {
         let storedScale = defaults.object(forKey: scaleKey) as? Double
         let scaleVersion = defaults.integer(forKey: scaleVersionKey)
         let scaleValue = Self.normalizedScale(storedScale, version: scaleVersion)
-        if scaleVersion < 2 {
+        if scaleVersion < 3 {
             defaults.set(scaleValue, forKey: scaleKey)
-            defaults.set(2, forKey: scaleVersionKey)
+            defaults.set(3, forKey: scaleVersionKey)
         }
         let speedValue = defaults.object(forKey: speedKey) as? Double ?? 1.0
         let reminders = defaults.object(forKey: remindersEnabledKey) as? Bool ?? true
@@ -105,20 +75,20 @@ struct PetSettings {
     }
 
     private static func normalizedScale(_ storedScale: Double?, version: Int) -> Double {
-        guard let storedScale else { return 0.34 }
-        if version < 2 {
-            if storedScale <= 0.50 { return 0.27 }
-            if storedScale <= 0.65 { return 0.34 }
-            return 0.43
+        guard let storedScale else { return 0.52 }
+        if version < 3 {
+            if storedScale <= 0.28 { return 0.44 }
+            if storedScale <= 0.36 { return 0.52 }
+            return 0.62
         }
-        return min(0.46, max(0.24, storedScale))
+        return min(0.66, max(0.40, storedScale))
     }
 
     func save() {
         let defaults = UserDefaults.standard
         defaults.set(mode.rawValue, forKey: PetSettings.modeKey)
         defaults.set(Double(scale), forKey: PetSettings.scaleKey)
-        defaults.set(2, forKey: PetSettings.scaleVersionKey)
+        defaults.set(3, forKey: PetSettings.scaleVersionKey)
         defaults.set(Double(speed), forKey: PetSettings.speedKey)
         defaults.set(remindersEnabled, forKey: PetSettings.remindersEnabledKey)
         defaults.set(doNotDisturb, forKey: PetSettings.doNotDisturbKey)
@@ -239,6 +209,7 @@ struct FocusSession {
 
 final class CatView: NSView {
     private let shadowLayer = CALayer()
+    private let poseLayer = CALayer()
     private let rigLayer = CALayer()
     private let sittingCoreLayer = CALayer()
     private let tailLayer = CALayer()
@@ -260,6 +231,10 @@ final class CatView: NSView {
     private let walkFrontLegLayer = CALayer()
     private let walkHeadLayer = CALayer()
     private var currentMood: PetMood = .idle
+    private var petState: PetState = .idle
+    private var currentAction: PetAction?
+    private var poseFrames: [PetMood: [CGImage]] = [:]
+    private var walkPoseFrames: [CGImage] = []
     private var settleTimer: Timer?
     private var isWalking = false
     private var wasDragged = false
@@ -299,6 +274,7 @@ final class CatView: NSView {
         layer?.masksToBounds = false
         setupRenderLayers()
         loadRigParts()
+        loadPoseFrames()
         showMood(.idle)
     }
 
@@ -309,6 +285,7 @@ final class CatView: NSView {
     override func layout() {
         super.layout()
         rigLayer.frame = bounds.insetBy(dx: bounds.width * 0.08, dy: bounds.height * 0.05)
+        poseLayer.frame = bounds.insetBy(dx: bounds.width * 0.015, dy: bounds.height * 0.015)
         sittingCoreLayer.frame = rigLayer.bounds
         walkCoreLayer.frame = rigLayer.bounds
         configurePart(tailLayer, anchor: CGPoint(x: 0.43, y: 0.23))
@@ -345,7 +322,14 @@ final class CatView: NSView {
         shadowLayer.masksToBounds = true
         rootLayer.addSublayer(shadowLayer)
 
+        poseLayer.contentsGravity = .resizeAspect
+        poseLayer.minificationFilter = .trilinear
+        poseLayer.magnificationFilter = .linear
+        poseLayer.masksToBounds = false
+        rootLayer.addSublayer(poseLayer)
+
         rigLayer.masksToBounds = false
+        rigLayer.opacity = 0
         rootLayer.addSublayer(rigLayer)
         sittingCoreLayer.masksToBounds = false
         walkCoreLayer.masksToBounds = false
@@ -449,6 +433,63 @@ final class CatView: NSView {
         setWalkingPose(false)
     }
 
+    private func loadPoseFrames() {
+        let counts: [PetMood: Int] = [
+            .idle: 2, .blink: 2, .react: 2, .groom: 4,
+            .scratch: 4, .jump: 4, .sleep: 2, .roll: 5
+        ]
+        for (mood, count) in counts {
+            let prefix = (mood == .blink || mood == .react) ? "idle" : mood.rawValue
+            poseFrames[mood] = loadImages(prefix: prefix, count: count)
+        }
+        walkPoseFrames = loadImages(prefix: "walk", count: 4)
+    }
+
+    private func loadImages(prefix: String, count: Int) -> [CGImage] {
+        (0..<count).compactMap { index in
+            guard let url = Bundle.main.url(
+                forResource: String(format: "%@_%02d", prefix, index),
+                withExtension: "png",
+                subdirectory: "Poses"
+            ),
+            let image = NSImage(contentsOf: url) else {
+                return nil
+            }
+            var rect = NSRect(origin: .zero, size: image.size)
+            return image.cgImage(forProposedRect: &rect, context: nil, hints: nil)
+        }
+    }
+
+    private func showPoseFrames(_ frames: [CGImage],
+                                duration: TimeInterval,
+                                repeatForever: Bool = false) {
+        guard !frames.isEmpty else { return }
+        poseLayer.removeAnimation(forKey: "poseTimeline")
+        if let progressText = ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_PROGRESS"],
+           let progress = Double(progressText) {
+            let clamped = min(1, max(0, progress))
+            let index = min(frames.count - 1, Int(Double(frames.count) * clamped))
+            poseLayer.contents = frames[index]
+            return
+        }
+        poseLayer.contents = frames.last
+        guard frames.count > 1 else { return }
+        let animation = CAKeyframeAnimation(keyPath: "contents")
+        animation.values = frames
+        animation.duration = duration
+        animation.calculationMode = .discrete
+        animation.repeatCount = repeatForever ? .infinity : 0
+        animation.isRemovedOnCompletion = !repeatForever
+        poseLayer.add(animation, forKey: "poseTimeline")
+    }
+
+    private func showPose(_ mood: PetMood,
+                          duration: TimeInterval,
+                          repeatForever: Bool = false) {
+        guard let frames = poseFrames[mood] else { return }
+        showPoseFrames(frames, duration: duration, repeatForever: repeatForever)
+    }
+
     private func setWalkingPose(_ walking: Bool, animated: Bool = false) {
         let sittingOpacity: Float = walking ? 0 : 1
         let walkingOpacity: Float = walking ? 1 : 0
@@ -479,9 +520,12 @@ final class CatView: NSView {
 
     private func showMood(_ mood: PetMood) {
         currentMood = mood
+        petState = mood == .sleep ? .sleeping : .idle
+        currentAction = nil
         clearActionMotion()
         if mood == .idle {
             startIdleMotion()
+            showPose(.idle, duration: 2.8, repeatForever: true)
         }
     }
 
@@ -493,12 +537,15 @@ final class CatView: NSView {
         settleTimer?.invalidate()
         let wasWalking = isWalking
         currentMood = mood
+        currentAction = PetAction(rawValue: mood.rawValue)
+        petState = .idle
         isWalking = false
         let actionFrames: [PetMood: Int] = [
             .blink: 4, .react: 5, .groom: 7, .scratch: 12, .jump: 7, .roll: 10
         ]
         let duration = frameDuration * Double(actionFrames[mood] ?? 5) * Double(max(1, loops))
         applyActionMotion(for: mood, duration: duration)
+        showPose(mood, duration: duration)
         if wasWalking {
             setWalkingPose(false, animated: true)
         }
@@ -517,8 +564,11 @@ final class CatView: NSView {
         settleTimer?.invalidate()
         isWalking = false
         currentMood = .sleep
+        petState = .sleeping
+        currentAction = nil
         setWalkingPose(false, animated: true)
         applyActionMotion(for: .sleep, duration: duration ?? 3.2)
+        showPose(.sleep, duration: 3.2, repeatForever: duration == nil)
         if let duration {
             settleTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
                 self?.wakeUp()
@@ -537,6 +587,7 @@ final class CatView: NSView {
         sittingCoreLayer.removeAllAnimations()
         walkCoreLayer.removeAllAnimations()
         shadowLayer.removeAllAnimations()
+        poseLayer.removeAnimation(forKey: "poseTimeline")
         partLayers.forEach { $0.removeAllAnimations() }
         leftBlinkLayer.removeAllAnimations()
         rightBlinkLayer.removeAllAnimations()
@@ -737,7 +788,10 @@ final class CatView: NSView {
         guard !isWalking, currentMood == .idle else { return }
         clearActionMotion()
         isWalking = true
+        petState = .walking
+        currentAction = nil
         setWalkingPose(true, animated: true)
+        showPoseFrames(walkPoseFrames, duration: 0.72, repeatForever: true)
         let forever = Float.infinity
         let duration: TimeInterval = 0.86
         let phases: [NSNumber] = [0, 0.2, 0.5, 0.7, 1]
@@ -798,6 +852,8 @@ final class CatView: NSView {
     private func reactToClick(at location: NSPoint) {
         let wasWalking = isWalking
         currentMood = .react
+        petState = .idle
+        currentAction = .react
         isWalking = false
         clearActionMotion()
         if wasWalking {
@@ -825,11 +881,14 @@ final class CatView: NSView {
                        opacity: [0.68, 0.72, 0.64, 0.69, 0.68],
                        duration: total,
                        keyTimes: times)
+        showPose(.react, duration: total)
         finishInteraction(after: total)
     }
 
     private func settleAfterDrag() {
         currentMood = .react
+        petState = .idle
+        currentAction = .react
         isWalking = false
         clearActionMotion()
         let total: TimeInterval = 0.46
@@ -839,15 +898,18 @@ final class CatView: NSView {
         add(leftPawLayer, "transform.rotation.z", [-0.04, 0.035, -0.012, 0], total, times)
         add(rightPawLayer, "transform.rotation.z", [0.04, -0.035, 0.012, 0], total, times)
         add(tailLayer, "transform.rotation.z", [0.08, -0.05, 0.02, 0], total, times)
+        showPose(.react, duration: total)
         finishInteraction(after: total)
     }
 
     private func stopWalkCycle() {
         guard isWalking else { return }
         isWalking = false
+        petState = .idle
         clearActionMotion()
         setWalkingPose(false, animated: true)
         startIdleMotion()
+        showPose(.idle, duration: 2.8, repeatForever: true)
     }
 
     private func addShadowPulse(scale: [CGFloat],
@@ -1077,8 +1139,6 @@ final class PetController: NSObject {
         userDriverDelegate: nil
     )
     private let baseSize = NSSize(width: 360, height: 392)
-    private let live2DStatus = Live2DAssetStatus.current()
-
     func start() {
         let size = currentSize()
         window = TianMiaoWindow(contentRect: NSRect(origin: initialOrigin(size: size), size: size))
@@ -1132,9 +1192,6 @@ final class PetController: NSObject {
         let status = NSMenuItem(title: stats.compactLine, action: nil, keyEquivalent: "")
         status.isEnabled = false
         menu.addItem(status)
-        let live2DItem = NSMenuItem(title: live2DStatus.menuLine, action: nil, keyEquivalent: "")
-        live2DItem.isEnabled = false
-        menu.addItem(live2DItem)
         menu.addItem(NSMenuItem(title: "看状态", action: #selector(showStatus), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "喂小鱼干", action: #selector(feed), keyEquivalent: ""))
@@ -1146,9 +1203,9 @@ final class PetController: NSObject {
         menu.addItem(item("角落休息", action: #selector(setCorner), checked: settings.mode == .corner))
         menu.addItem(NSMenuItem(title: "召唤到鼠标旁", action: #selector(summonToMouse), keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(item("小一点", action: #selector(sizeSmall), checked: abs(settings.scale - 0.27) < 0.01))
-        menu.addItem(item("标准大小", action: #selector(sizeNormal), checked: abs(settings.scale - 0.34) < 0.01))
-        menu.addItem(item("大一点", action: #selector(sizeLarge), checked: abs(settings.scale - 0.43) < 0.01))
+        menu.addItem(item("小一点", action: #selector(sizeSmall), checked: abs(settings.scale - 0.44) < 0.01))
+        menu.addItem(item("标准大小", action: #selector(sizeNormal), checked: abs(settings.scale - 0.52) < 0.01))
+        menu.addItem(item("大一点", action: #selector(sizeLarge), checked: abs(settings.scale - 0.62) < 0.01))
         menu.addItem(.separator())
         menu.addItem(item("慢悠悠", action: #selector(speedSlow), checked: settings.speed == 0.65))
         menu.addItem(item("正常速度", action: #selector(speedNormal), checked: settings.speed == 1.0))
@@ -1476,19 +1533,19 @@ final class PetController: NSObject {
     }
 
     @objc private func sizeSmall() {
-        settings.scale = 0.27
+        settings.scale = 0.44
         applySettings()
         showBubble("变小一点")
     }
 
     @objc private func sizeNormal() {
-        settings.scale = 0.34
+        settings.scale = 0.52
         applySettings()
         showBubble("标准大小")
     }
 
     @objc private func sizeLarge() {
-        settings.scale = 0.43
+        settings.scale = 0.62
         applySettings()
         showBubble("变大一点")
     }

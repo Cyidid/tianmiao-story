@@ -1,4 +1,4 @@
-# Tianmiao Live2D Model Slot
+# Tianmiao Experimental Live2D Model Slot
 
 This directory is reserved for the real Live2D Cubism export of the selected gray-white tabby cat.
 

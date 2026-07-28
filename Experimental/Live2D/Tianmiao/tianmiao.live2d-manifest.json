@@ -1,7 +1,7 @@
 {
   "assetVersion": "pending-live2d-export",
   "character": "Tianmiao selected gray-white tabby",
-  "status": "pending_model_export",
+  "status": "experimental_pending_model_export",
   "modelPath": "tianmiao.model3.json",
   "canvas": {
     "width": 360,
