@@ -195,6 +195,46 @@ struct PetStats {
     }
 }
 
+struct FocusSession {
+    static let endDateKey = "focusEndDate"
+
+    private(set) var endDate: Date?
+
+    static func load() -> FocusSession {
+        let defaults = UserDefaults.standard
+        guard let endDate = defaults.object(forKey: endDateKey) as? Date,
+              endDate > Date() else {
+            defaults.removeObject(forKey: endDateKey)
+            return FocusSession(endDate: nil)
+        }
+        return FocusSession(endDate: endDate)
+    }
+
+    var isActive: Bool {
+        remainingSeconds > 0
+    }
+
+    var remainingSeconds: Int {
+        guard let endDate else { return 0 }
+        return max(0, Int(ceil(endDate.timeIntervalSinceNow)))
+    }
+
+    var remainingLine: String {
+        let seconds = remainingSeconds
+        return String(format: "专注剩余 %02d:%02d", seconds / 60, seconds % 60)
+    }
+
+    mutating func start(duration: TimeInterval) {
+        endDate = Date().addingTimeInterval(duration)
+        UserDefaults.standard.set(endDate, forKey: Self.endDateKey)
+    }
+
+    mutating func cancel() {
+        endDate = nil
+        UserDefaults.standard.removeObject(forKey: Self.endDateKey)
+    }
+}
+
 final class CatView: NSView {
     private let shadowLayer = CALayer()
     private let rigLayer = CALayer()
@@ -1028,6 +1068,7 @@ final class PetController: NSObject {
     private var roamTransitionAt = Date().addingTimeInterval(5)
     private var settings = PetSettings.load()
     private var stats = PetStats.load()
+    private var focusSession = FocusSession.load()
     private let baseSize = NSSize(width: 360, height: 392)
     private let live2DStatus = Live2DAssetStatus.current()
 
@@ -1048,6 +1089,7 @@ final class PetController: NSObject {
         startAmbientBehaviors()
         startGentleReminders()
         startNeedsDecay()
+        restoreFocusSession()
         showBubble(stats.moodLine)
         if ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_INTERACTION"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -1059,6 +1101,11 @@ final class PetController: NSObject {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 self?.pauseMovement()
                 self?.catView.runActionPreview(named: action)
+            }
+        }
+        if ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_FOCUS"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                self?.startFocus()
             }
         }
     }
@@ -1099,7 +1146,14 @@ final class PetController: NSObject {
         menu.addItem(item("置顶显示", action: #selector(toggleAlwaysOnTop), checked: settings.alwaysOnTop))
         menu.addItem(item("休息提醒", action: #selector(toggleReminders), checked: settings.remindersEnabled))
         menu.addItem(item("勿扰模式", action: #selector(toggleDoNotDisturb), checked: settings.doNotDisturb))
-        menu.addItem(NSMenuItem(title: "开始 25 分钟专注", action: #selector(startFocus), keyEquivalent: ""))
+        if focusSession.isActive {
+            let focusStatus = NSMenuItem(title: focusSession.remainingLine, action: nil, keyEquivalent: "")
+            focusStatus.isEnabled = false
+            menu.addItem(focusStatus)
+            menu.addItem(NSMenuItem(title: "取消专注", action: #selector(cancelFocus), keyEquivalent: ""))
+        } else {
+            menu.addItem(NSMenuItem(title: "开始 25 分钟专注", action: #selector(startFocus), keyEquivalent: ""))
+        }
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "退出甜喵物语", action: #selector(quit), keyEquivalent: "q"))
         for menuItem in menu.items where menuItem.action != nil && menuItem.target == nil {
@@ -1492,16 +1546,52 @@ final class PetController: NSObject {
 
     @objc private func startFocus() {
         focusTimer?.invalidate()
+        let duration = Double(ProcessInfo.processInfo.environment["TIANMIAO_FOCUS_DURATION_SECONDS"] ?? "") ?? 25 * 60
+        focusSession.start(duration: max(1, duration))
         settings.mode = .corner
         settings.save()
         applySettings()
         catView.play(.blink, frameDuration: 0.18, loops: 2)
         showBubble("开始 25 分钟专注", seconds: 4.0)
-        focusTimer = Timer.scheduledTimer(withTimeInterval: 25 * 60, repeats: false) { [weak self] _ in
-            self?.stats.adjust(happiness: 6, energy: 6)
-            self?.showReminder("专注结束，起来活动一下")
-            self?.catView.play(.blink, frameDuration: 0.11, loops: 2)
+        scheduleFocusCompletion()
+    }
+
+    @objc private func cancelFocus() {
+        focusTimer?.invalidate()
+        focusSession.cancel()
+        catView.wakeUp()
+        settings.mode = .roam
+        applySettings()
+        showBubble("专注已取消")
+    }
+
+    private func restoreFocusSession() {
+        guard focusSession.isActive else { return }
+        settings.mode = .corner
+        settings.save()
+        applySettings()
+        scheduleFocusCompletion()
+    }
+
+    private func scheduleFocusCompletion() {
+        focusTimer?.invalidate()
+        let delay = max(0, focusSession.endDate?.timeIntervalSinceNow ?? 0)
+        guard delay > 0 else {
+            completeFocusSession()
+            return
         }
+        focusTimer = Timer.scheduledTimer(withTimeInterval: delay, repeats: false) { [weak self] _ in
+            self?.completeFocusSession()
+        }
+    }
+
+    private func completeFocusSession() {
+        guard focusSession.endDate != nil else { return }
+        focusSession.cancel()
+        stats.adjust(happiness: 6, energy: 6)
+        catView.wakeUp()
+        showReminder("专注结束，起来活动一下")
+        catView.play(.blink, frameDuration: 0.11, loops: 2)
     }
 
     @objc private func quit() {
