@@ -95,15 +95,13 @@ codesign --verify --deep --strict "$APP_DIR"
 if [ -d "$ROOT_DIR/甜喵物语.app" ]; then
   mv "$ROOT_DIR/甜喵物语.app" "$ROOT_DIR/build/甜喵物语.app.previous.$$"
 fi
-COPYFILE_DISABLE=1 ditto --norsrc "$APP_DIR" "$ROOT_DIR/甜喵物语.app"
 
+# Moving the already-clean bundle avoids reintroducing Finder/file-provider
+# metadata when the repository lives in a synced Documents directory.
+mv "$APP_DIR" "$ROOT_DIR/甜喵物语.app"
 APP_DIR="$ROOT_DIR/甜喵物语.app"
 clean_app_metadata "$APP_DIR"
 codesign --force --deep --sign - "$APP_DIR" >/dev/null
-clean_app_metadata "$APP_DIR"
-if ! codesign --verify --deep --strict "$APP_DIR"; then
-  echo "Strict verification failed after copying to the workspace; retrying normal verification."
-  codesign --verify --deep "$APP_DIR"
-fi
+codesign --verify --deep --strict "$APP_DIR"
 echo "Built $APP_DIR"
 rm -rf "$BUILD_ROOT"
