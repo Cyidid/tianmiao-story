@@ -44,6 +44,9 @@
 
 构建结果会生成本地 `甜喵物语.app`。该目录是构建产物，不提交到仓库；发布版请从 GitHub Releases 下载 zip。
 应用版本与构建号统一维护在 `Config/version.env`，正式发布前只需更新这一处。
+首次构建会下载并校验固定版本的 Sparkle 2.9.4，依赖缓存保存在忽略提交的 `build/dependencies/`。
+
+应用内自动更新的公开配置位于 `Config/sparkle.env`。Ed25519 私钥只允许保存在发布者 Keychain，禁止写入仓库或导出到项目目录。
 
 正式发布包使用：
 

@@ -1,6 +1,7 @@
 import Cocoa
 import QuartzCore
 import ServiceManagement
+import Sparkle
 import UserNotifications
 
 enum PetMode: String {
@@ -1070,6 +1071,11 @@ final class PetController: NSObject {
     private var settings = PetSettings.load()
     private var stats = PetStats.load()
     private var focusSession = FocusSession.load()
+    private let updaterController = SPUStandardUpdaterController(
+        startingUpdater: true,
+        updaterDelegate: nil,
+        userDriverDelegate: nil
+    )
     private let baseSize = NSSize(width: 360, height: 392)
     private let live2DStatus = Live2DAssetStatus.current()
 
@@ -1155,6 +1161,14 @@ final class PetController: NSObject {
         menu.addItem(item("登录时启动",
                           action: #selector(toggleLaunchAtLogin),
                           checked: SMAppService.mainApp.status == .enabled))
+        let updateItem = NSMenuItem(
+            title: "检查更新…",
+            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+            keyEquivalent: ""
+        )
+        updateItem.target = updaterController
+        updateItem.isEnabled = updaterController.updater.canCheckForUpdates
+        menu.addItem(updateItem)
         if focusSession.isActive {
             let focusStatus = NSMenuItem(title: focusSession.remainingLine, action: nil, keyEquivalent: "")
             focusStatus.isEnabled = false
