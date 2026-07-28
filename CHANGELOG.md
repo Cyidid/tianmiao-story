@@ -1,16 +1,17 @@
 # 更新记录
 
-## v3.21（未发布）
+## v3.21
 
 - 固定接入 Sparkle 2.9.4，提供应用内“检查更新”和默认每日后台检查。
 - 使用固定 SHA-256 下载 Sparkle，并将 framework、Updater 和 XPC 服务嵌入应用。
 - 创建项目独立的 Ed25519 更新签名密钥；仓库只保存公钥，私钥保留在发布者 Keychain。
-- 正式发布脚本强制验证 Developer ID、hardened runtime、notarization、stapling 和 Sparkle appcast 签名。
+- 发布脚本生成 Sparkle Ed25519 签名的更新归档和 appcast；如提供 Developer ID 凭据，可额外完成 hardened runtime、notarization 和 stapling。
 
-### 发布阻塞
+### 发布说明
 
-- 当前机器没有 Developer ID Application 证书和 notarization Keychain profile。
-- 在这两项准备完成并通过真实升级测试前，v3.21 不得推送为正式版本或创建 Release。
+- 本版本按项目选择使用 ad-hoc 应用签名，没有 Apple Developer ID 身份签名与公证。
+- 自动更新归档仍通过项目独立的 Sparkle Ed25519 密钥校验；首次下载安装时 macOS 可能要求用户手动允许。
+- Live2D 制作源包和资源门禁保留；真实 `.moc3/.model3.json` 与官方 Cubism SDK 尚未取得，因此本版本继续使用原生分层动画，不冒充 Live2D 已完成。
 
 ## v3.20
 
