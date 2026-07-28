@@ -28,6 +28,8 @@ DOWNLOAD_PREFIX="https://github.com/Cyidid/tianmiao-story/releases/download/v${A
 
 mkdir -p "$WORK_ROOT" "$DIST_DIR" "$FEED_DIR"
 
+"$ROOT_DIR/scripts/verify_visual_qa.sh"
+
 release_kind="EdDSA-signed ad-hoc"
 if [ -n "${DEVELOPER_ID_APPLICATION:-}" ] || [ -n "${NOTARY_PROFILE:-}" ]; then
   "$ROOT_DIR/scripts/verify_release_credentials.sh"
