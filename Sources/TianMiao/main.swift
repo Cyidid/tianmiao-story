@@ -14,6 +14,9 @@ enum PetMood: String {
     case react
     case groom
     case scratch
+    case jump
+    case sleep
+    case roll
 }
 
 struct Live2DAssetStatus {
@@ -243,6 +246,10 @@ final class CatView: NSView {
         isWalking
     }
 
+    var isSleeping: Bool {
+        currentMood == .sleep
+    }
+
     init(frame: NSRect, controller: PetController) {
         self.controller = controller
         super.init(frame: frame)
@@ -437,11 +444,17 @@ final class CatView: NSView {
     }
 
     func play(_ mood: PetMood, frameDuration: TimeInterval = 0.16, loops: Int = 1) {
+        if mood == .sleep {
+            startSleeping()
+            return
+        }
         settleTimer?.invalidate()
         let wasWalking = isWalking
         currentMood = mood
         isWalking = false
-        let actionFrames: [PetMood: Int] = [.blink: 4, .react: 5, .groom: 7, .scratch: 12]
+        let actionFrames: [PetMood: Int] = [
+            .blink: 4, .react: 5, .groom: 7, .scratch: 12, .jump: 7, .roll: 10
+        ]
         let duration = frameDuration * Double(actionFrames[mood] ?? 5) * Double(max(1, loops))
         applyActionMotion(for: mood, duration: duration)
         if wasWalking {
@@ -455,6 +468,26 @@ final class CatView: NSView {
     func playIfIdle(_ mood: PetMood, frameDuration: TimeInterval = 0.16, loops: Int = 1) {
         guard currentMood == .idle, !isWalking else { return }
         play(mood, frameDuration: frameDuration, loops: loops)
+    }
+
+    func startSleeping(for duration: TimeInterval? = nil) {
+        guard currentMood == .idle || currentMood == .blink else { return }
+        settleTimer?.invalidate()
+        isWalking = false
+        currentMood = .sleep
+        setWalkingPose(false, animated: true)
+        applyActionMotion(for: .sleep, duration: duration ?? 3.2)
+        if let duration {
+            settleTimer = Timer.scheduledTimer(withTimeInterval: duration, repeats: false) { [weak self] _ in
+                self?.wakeUp()
+            }
+        }
+    }
+
+    func wakeUp() {
+        guard currentMood == .sleep else { return }
+        settleTimer?.invalidate()
+        showMood(.idle)
     }
 
     private func clearActionMotion() {
@@ -542,6 +575,83 @@ final class CatView: NSView {
             add(tailLayer, "transform.rotation.z", [0, -0.035, 0.05, -0.05, 0.055, -0.05, 0.05, -0.03, 0.01, 0], total, times)
             addShadowPulse(scale: [1, 1.02, 1.035, 1.02, 1.035, 1.02, 1.035, 1.02, 1.01, 1],
                            opacity: [0.68, 0.7, 0.72, 0.7, 0.72, 0.7, 0.72, 0.7, 0.69, 0.68],
+                           duration: total,
+                           keyTimes: times)
+        case .jump:
+            let lift = max(13, bounds.height * 0.18)
+            let times: [NSNumber] = [0, 0.16, 0.3, 0.5, 0.68, 0.84, 1]
+            add(rigLayer, "transform.translation.y",
+                [0, -3, lift * 0.78, lift, lift * 0.72, -2, 0], total, times)
+            add(bodyLayer, "transform.scale.y",
+                [1, 0.94, 1.05, 1.02, 1.04, 0.96, 1], total, times, additive: false)
+            add(haunchLayer, "transform.translation.y",
+                [0, -2, 2, 3, 2, -1, 0], total, times)
+            add(leftPawLayer, "transform.translation.y",
+                [0, -2, 7, 10, 7, -1, 0], total, times)
+            add(rightPawLayer, "transform.translation.y",
+                [0, -2, 8, 11, 8, -1, 0], total, times)
+            add(leftPawLayer, "transform.rotation.z",
+                [0, 0.03, -0.13, -0.17, -0.12, 0.03, 0], total, times)
+            add(rightPawLayer, "transform.rotation.z",
+                [0, -0.03, 0.13, 0.17, 0.12, -0.03, 0], total, times)
+            add(headLayer, "transform.translation.y",
+                [0, -1, 2, 4, 2, -1, 0], total, times)
+            add(tailLayer, "transform.rotation.z",
+                [0, -0.08, 0.12, 0.17, 0.1, -0.04, 0], total, times)
+            addShadowPulse(scale: [1, 1.08, 0.72, 0.64, 0.74, 1.08, 1],
+                           opacity: [0.68, 0.74, 0.42, 0.32, 0.45, 0.76, 0.68],
+                           duration: total,
+                           keyTimes: times)
+        case .sleep:
+            let forever = Float.infinity
+            add(leftBlinkLayer, "opacity", [1, 1], 3.2,
+                additive: false, repeatCount: forever, key: "sleepLeftEye")
+            add(rightBlinkLayer, "opacity", [1, 1], 3.2,
+                additive: false, repeatCount: forever, key: "sleepRightEye")
+            add(sittingCoreLayer, "transform.translation.y", [0, -1.2, 0], 3.2,
+                repeatCount: forever, key: "sleepWeight")
+            add(bodyLayer, "transform.scale.y", [0.975, 0.995, 0.975], 3.2,
+                additive: false, repeatCount: forever, key: "sleepBreath")
+            add(headLayer, "transform.translation.y", [-1, -2.2, -1], 3.2,
+                repeatCount: forever, key: "sleepHead")
+            add(headLayer, "transform.rotation.z", [0.035, 0.05, 0.035], 3.2,
+                repeatCount: forever, key: "sleepHeadTilt")
+            add(leftPawLayer, "transform.translation.x", [0, 1.2, 0], 3.2,
+                repeatCount: forever, key: "sleepLeftPaw")
+            add(rightPawLayer, "transform.translation.x", [0, -1.2, 0], 3.2,
+                repeatCount: forever, key: "sleepRightPaw")
+            add(tailLayer, "transform.rotation.z", [-0.06, 0.025, -0.06], 4.2,
+                repeatCount: forever, key: "sleepTail")
+            addShadowPulse(scale: [1.02, 0.98, 1.02],
+                           opacity: [0.66, 0.61, 0.66],
+                           duration: 3.2,
+                           repeatForever: true)
+        case .roll:
+            let times: [NSNumber] = [0, 0.12, 0.25, 0.4, 0.56, 0.72, 0.86, 1]
+            add(sittingCoreLayer, "transform.translation.x",
+                [0, -2, -4, -5, -4, -2, 0.5, 0], total, times)
+            add(sittingCoreLayer, "transform.translation.y",
+                [0, -1, 0.5, 2, 1.5, 0.5, -0.5, 0], total, times)
+            add(bodyLayer, "transform.rotation.z",
+                [0, -0.035, -0.09, -0.14, -0.1, -0.04, 0.015, 0], total, times)
+            add(haunchLayer, "transform.rotation.z",
+                [0, -0.03, -0.075, -0.12, -0.08, -0.03, 0.012, 0], total, times)
+            add(headLayer, "transform.rotation.z",
+                [0, -0.025, -0.07, -0.11, -0.075, -0.025, 0.012, 0], total, times)
+            add(headLayer, "transform.translation.x",
+                [0, -0.5, -1.5, -2, -1.5, -0.5, 0, 0], total, times)
+            add(leftPawLayer, "transform.translation.y",
+                [0, 1, 3.5, 5, 4, 2, 0.5, 0], total, times)
+            add(rightPawLayer, "transform.translation.y",
+                [0, 1.5, 4, 5.5, 4.5, 2, 0.5, 0], total, times)
+            add(leftPawLayer, "transform.rotation.z",
+                [0, 0.04, 0.1, 0.15, 0.1, 0.04, -0.01, 0], total, times)
+            add(rightPawLayer, "transform.rotation.z",
+                [0, -0.04, -0.1, -0.15, -0.1, -0.04, 0.01, 0], total, times)
+            add(tailLayer, "transform.rotation.z",
+                [0, 0.07, 0.15, 0.21, 0.14, 0.05, -0.025, 0], total, times)
+            addShadowPulse(scale: [1, 1.02, 1.07, 1.1, 1.07, 1.02, 0.99, 1],
+                           opacity: [0.68, 0.69, 0.7, 0.69, 0.68, 0.67, 0.67, 0.68],
                            duration: total,
                            keyTimes: times)
         }
@@ -784,6 +894,9 @@ final class CatView: NSView {
         case "blink": play(.blink, frameDuration: 0.12, loops: 2)
         case "groom": play(.groom, frameDuration: 0.15, loops: 1)
         case "scratch": play(.scratch, frameDuration: 0.11, loops: 1)
+        case "jump": play(.jump, frameDuration: 0.12, loops: 1)
+        case "sleep": startSleeping()
+        case "roll": play(.roll, frameDuration: 0.12, loops: 1)
         case "tap": runInteractionPreview()
         default: break
         }
@@ -979,6 +1092,9 @@ final class PetController: NSObject {
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "梳毛", action: #selector(groom), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "挠一挠", action: #selector(scratch), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "跳一下", action: #selector(jump), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "睡觉", action: #selector(sleep), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "打个滚", action: #selector(roll), keyEquivalent: ""))
         menu.addItem(.separator())
         menu.addItem(item("置顶显示", action: #selector(toggleAlwaysOnTop), checked: settings.alwaysOnTop))
         menu.addItem(item("休息提醒", action: #selector(toggleReminders), checked: settings.remindersEnabled))
@@ -1026,10 +1142,16 @@ final class PetController: NSObject {
             let roll = Int.random(in: 0..<100)
             if roll < 34 {
                 self.catView.playIfIdle(.blink, frameDuration: 0.11, loops: 1)
-            } else if roll < 54 {
+            } else if roll < 50 {
                 self.catView.playIfIdle(.groom, frameDuration: 0.16, loops: 1)
-            } else if roll < 72 {
+            } else if roll < 64 {
                 self.catView.playIfIdle(.scratch, frameDuration: 0.11, loops: 1)
+            } else if roll < 74 {
+                self.catView.playIfIdle(.jump, frameDuration: 0.12, loops: 1)
+            } else if roll < 82 {
+                self.catView.playIfIdle(.roll, frameDuration: 0.12, loops: 1)
+            } else if roll < 88 {
+                self.catView.startSleeping(for: Double.random(in: 5.0...9.0))
             } else {
                 self.showBubble(self.stats.moodLine)
             }
@@ -1053,7 +1175,7 @@ final class PetController: NSObject {
             if self.stats.hunger < 26 {
                 self.showBubble("有点饿，想吃小鱼干")
             } else if self.stats.energy < 24 {
-                self.catView.playIfIdle(.blink, frameDuration: 0.18, loops: 2)
+                self.catView.startSleeping()
                 self.showBubble("甜喵有点困")
             } else if self.stats.happiness < 28 {
                 self.showBubble("想被陪一下")
@@ -1131,6 +1253,9 @@ final class PetController: NSObject {
         let target = NSPoint(x: screen.maxX - window.frame.width - 28, y: groundY(in: screen))
         catView.setMotionTilt(dx: target.x - window.frame.origin.x, dy: 0)
         move(window, toward: target, easing: 0.05)
+        if abs(target.x - window.frame.origin.x) < 1.0 {
+            catView.startSleeping()
+        }
     }
 
     private func move(_ window: NSWindow, toward target: NSPoint, easing: CGFloat) {
@@ -1170,6 +1295,7 @@ final class PetController: NSObject {
     }
 
     func receiveClick() {
+        catView.wakeUp()
         stats.adjust(happiness: 2)
         if Int.random(in: 0..<3) == 0 {
             showBubble(["在呢", "喵", stats.moodLine].randomElement() ?? "喵")
@@ -1209,6 +1335,7 @@ final class PetController: NSObject {
     }
 
     @objc private func setRoam() {
+        catView.wakeUp()
         settings.mode = .roam
         isRoamWalking = true
         roamTransitionAt = Date().addingTimeInterval(Double.random(in: 4.5...8.0))
@@ -1217,12 +1344,14 @@ final class PetController: NSObject {
     }
 
     @objc private func setFollow() {
+        catView.wakeUp()
         settings.mode = .follow
         applySettings()
         showBubble("跟着你走")
     }
 
     @objc private func setCorner() {
+        catView.wakeUp()
         settings.mode = .corner
         applySettings()
         catView.play(.blink, frameDuration: 0.18, loops: 2)
@@ -1266,15 +1395,36 @@ final class PetController: NSObject {
     }
 
     @objc private func groom() {
+        catView.wakeUp()
         stats.adjust(happiness: 3, energy: -1)
         catView.play(.groom, frameDuration: 0.15, loops: 2)
         showBubble("把毛整理好")
     }
 
     @objc private func scratch() {
+        catView.wakeUp()
         stats.adjust(happiness: 4, energy: -2)
         catView.play(.scratch, frameDuration: 0.11, loops: 1)
         showBubble("磨磨小爪子")
+    }
+
+    @objc private func jump() {
+        catView.wakeUp()
+        stats.adjust(happiness: 3, energy: -2)
+        catView.play(.jump, frameDuration: 0.12, loops: 1)
+        showBubble("跳一下")
+    }
+
+    @objc private func sleep() {
+        catView.startSleeping()
+        showBubble("睡一小会儿")
+    }
+
+    @objc private func roll() {
+        catView.wakeUp()
+        stats.adjust(happiness: 5, energy: -3)
+        catView.play(.roll, frameDuration: 0.12, loops: 1)
+        showBubble("打个滚")
     }
 
     @objc private func showStatus() {
@@ -1282,12 +1432,14 @@ final class PetController: NSObject {
     }
 
     @objc private func feed() {
+        catView.wakeUp()
         stats.adjust(hunger: 18, happiness: 5, energy: 2)
         catView.play(.groom, frameDuration: 0.13, loops: 1)
         showBubble("小鱼干真好吃")
     }
 
     @objc private func playTogether() {
+        catView.wakeUp()
         stats.adjust(hunger: -5, happiness: 16, energy: -8)
         catView.runInteractionPreview()
         nudgeAwayFromMouse()
@@ -1295,6 +1447,7 @@ final class PetController: NSObject {
     }
 
     @objc private func pat() {
+        catView.wakeUp()
         stats.adjust(happiness: 10, energy: 2)
         catView.play(.blink, frameDuration: 0.1, loops: 2)
         showBubble("呼噜呼噜")
