@@ -5,13 +5,15 @@ from pathlib import Path
 
 from PIL import Image
 
-from generate_tianmiao_selected_assets import fit_to_canvas, paper_to_alpha
+from generate_tianmiao_selected_assets import content_bbox, paper_to_alpha
 
 
 ROOT = Path(__file__).resolve().parents[1]
-SHEET_PATH = ROOT / "assets" / "generated" / "tianmiao-character-sheet-v3-selected.png"
+SHEET_PATH = ROOT / "assets" / "generated" / "tianmiao-character-sheet-v4-no-ground.png"
 OUTPUT = ROOT / "Resources" / "Poses"
 CANVAS = (420, 420)
+POSE_SCALE = 1.72
+BOTTOM_PADDING = 18
 
 # Each crop contains exactly one pose from the approved character sheet.
 POSE_BOXES = {
@@ -40,6 +42,28 @@ SEQUENCES = {
     "roll": ["sit_compact", "roll_side", "roll_back", "roll_side", "sit_compact"],
 }
 
+
+def fit_pose(image: Image.Image) -> Image.Image:
+    """Place every source pose with one shared scale so proportions never pop."""
+    bbox = content_bbox(image)
+    cropped = image.crop(bbox)
+    resized = cropped.resize(
+        (round(cropped.width * POSE_SCALE), round(cropped.height * POSE_SCALE)),
+        Image.Resampling.LANCZOS,
+    )
+    if resized.width > CANVAS[0] - 12 or resized.height > CANVAS[1] - 12:
+        safety_scale = min((CANVAS[0] - 12) / resized.width, (CANVAS[1] - 12) / resized.height)
+        resized = resized.resize(
+            (round(resized.width * safety_scale), round(resized.height * safety_scale)),
+            Image.Resampling.LANCZOS,
+        )
+    canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+    x = (CANVAS[0] - resized.width) // 2
+    y = CANVAS[1] - resized.height - BOTTOM_PADDING
+    canvas.alpha_composite(resized, (x, max(0, y)))
+    return canvas
+
+
 def main() -> int:
     sheet = Image.open(SHEET_PATH).convert("RGBA")
     OUTPUT.mkdir(parents=True, exist_ok=True)
@@ -47,7 +71,7 @@ def main() -> int:
     poses: dict[str, Image.Image] = {}
     for name, box in POSE_BOXES.items():
         extracted = paper_to_alpha(sheet.crop(box))
-        poses[name] = fit_to_canvas(extracted, CANVAS, bottom_padding=18)
+        poses[name] = fit_pose(extracted)
 
     for action, pose_names in SEQUENCES.items():
         for index, pose_name in enumerate(pose_names):
