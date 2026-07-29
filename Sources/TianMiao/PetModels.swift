@@ -54,9 +54,9 @@ struct PetSettings {
         let storedScale = defaults.object(forKey: scaleKey) as? Double
         let scaleVersion = defaults.integer(forKey: scaleVersionKey)
         let scaleValue = Self.normalizedScale(storedScale, version: scaleVersion)
-        if scaleVersion < 4 {
+        if scaleVersion < 5 {
             defaults.set(scaleValue, forKey: scaleKey)
-            defaults.set(4, forKey: scaleVersionKey)
+            defaults.set(5, forKey: scaleVersionKey)
         }
         let speedValue = defaults.object(forKey: speedKey) as? Double ?? 1.0
         let reminders = defaults.object(forKey: remindersEnabledKey) as? Bool ?? true
@@ -73,14 +73,11 @@ struct PetSettings {
     private static func normalizedScale(_ storedScale: Double?, version: Int) -> Double {
         guard let storedScale else { return 0.48 }
         if version < 3 {
-            if storedScale <= 0.28 { return 0.44 }
-            if storedScale <= 0.36 { return 0.52 }
-            return 0.62
+            return storedScale <= 0.28 ? 0.40 : 0.48
         }
-        if version < 4 {
+        if version < 5 {
             if storedScale <= 0.45 { return 0.40 }
-            if storedScale <= 0.56 { return 0.48 }
-            return 0.57
+            return 0.48
         }
         return min(0.60, max(0.38, storedScale))
     }
@@ -89,7 +86,7 @@ struct PetSettings {
         let defaults = UserDefaults.standard
         defaults.set(mode.rawValue, forKey: PetSettings.modeKey)
         defaults.set(Double(scale), forKey: PetSettings.scaleKey)
-        defaults.set(4, forKey: PetSettings.scaleVersionKey)
+        defaults.set(5, forKey: PetSettings.scaleVersionKey)
         defaults.set(Double(speed), forKey: PetSettings.speedKey)
         defaults.set(remindersEnabled, forKey: PetSettings.remindersEnabledKey)
         defaults.set(doNotDisturb, forKey: PetSettings.doNotDisturbKey)
