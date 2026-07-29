@@ -92,9 +92,9 @@ final class PetController: NSObject {
         menu.addItem(item("角落休息", action: #selector(setCorner), checked: settings.mode == .corner))
         menu.addItem(NSMenuItem(title: "召唤到鼠标旁", action: #selector(summonToMouse), keyEquivalent: ""))
         menu.addItem(.separator())
-        menu.addItem(item("小一点", action: #selector(sizeSmall), checked: abs(settings.scale - 0.44) < 0.01))
-        menu.addItem(item("标准大小", action: #selector(sizeNormal), checked: abs(settings.scale - 0.52) < 0.01))
-        menu.addItem(item("大一点", action: #selector(sizeLarge), checked: abs(settings.scale - 0.62) < 0.01))
+        menu.addItem(item("小一点", action: #selector(sizeSmall), checked: abs(settings.scale - 0.40) < 0.01))
+        menu.addItem(item("标准大小", action: #selector(sizeNormal), checked: abs(settings.scale - 0.48) < 0.01))
+        menu.addItem(item("大一点", action: #selector(sizeLarge), checked: abs(settings.scale - 0.57) < 0.01))
         menu.addItem(.separator())
         menu.addItem(item("慢悠悠", action: #selector(speedSlow), checked: settings.speed == 0.65))
         menu.addItem(item("正常速度", action: #selector(speedNormal), checked: settings.speed == 1.0))
@@ -434,19 +434,19 @@ final class PetController: NSObject {
     }
 
     @objc private func sizeSmall() {
-        settings.scale = 0.44
+        settings.scale = 0.40
         applySettings()
         showBubble("变小一点")
     }
 
     @objc private func sizeNormal() {
-        settings.scale = 0.52
+        settings.scale = 0.48
         applySettings()
         showBubble("标准大小")
     }
 
     @objc private func sizeLarge() {
-        settings.scale = 0.62
+        settings.scale = 0.57
         applySettings()
         showBubble("变大一点")
     }
