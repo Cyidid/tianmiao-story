@@ -41,20 +41,20 @@ final class PetController: NSObject {
         showBubble(stats.moodLine)
         if ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_INTERACTION"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.catView.runInteractionPreview()
+                self?.perform(.tap, updateStats: false, showFeedback: false)
             }
         }
-        if let action = ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_ACTION"] {
+        if let actionName = ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_ACTION"],
+           let command = PetCommand(rawValue: actionName) {
             let delay = Double(ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_DELAY"] ?? "") ?? 1.0
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                self?.pauseMovement()
-                self?.catView.runActionPreview(named: action)
+                self?.perform(command, updateStats: false, showFeedback: false)
                 if ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_LOOP"] == "1" {
                     self?.previewTimer = Timer.scheduledTimer(
                         withTimeInterval: 2.4,
                         repeats: true
                     ) { [weak self] _ in
-                        self?.catView.runActionPreview(named: action)
+                        self?.perform(command, updateStats: false, showFeedback: false)
                     }
                 }
             }
@@ -236,6 +236,7 @@ final class PetController: NSObject {
         defer {
             bubbleWindow.reposition(near: window.frame, walking: catView.isWalkingPose)
         }
+        guard !catView.isPerformingAction else { return }
         switch settings.mode {
         case .roam:
             roam(window)
@@ -328,10 +329,10 @@ final class PetController: NSObject {
     }
 
     func resumeMovementAfterInteraction() {
-        settings.mode = .roam
-        settings.save()
-        isRoamWalking = true
-        roamTransitionAt = Date().addingTimeInterval(Double.random(in: 4.5...8.0))
+        if settings.mode == .roam {
+            isRoamWalking = true
+            roamTransitionAt = Date().addingTimeInterval(Double.random(in: 4.5...8.0))
+        }
         startMovement()
     }
 
@@ -410,7 +411,7 @@ final class PetController: NSObject {
     }
 
     @objc private func setRoam() {
-        catView.wakeUp()
+        catView.cancelActionAndWake()
         settings.mode = .roam
         isRoamWalking = true
         roamTransitionAt = Date().addingTimeInterval(Double.random(in: 4.5...8.0))
@@ -419,14 +420,14 @@ final class PetController: NSObject {
     }
 
     @objc private func setFollow() {
-        catView.wakeUp()
+        catView.cancelActionAndWake()
         settings.mode = .follow
         applySettings()
         showBubble("跟着你走")
     }
 
     @objc private func setCorner() {
-        catView.wakeUp()
+        catView.cancelActionAndWake()
         settings.mode = .corner
         applySettings()
         catView.play(.blink, frameDuration: 0.18, loops: 2)
@@ -470,36 +471,23 @@ final class PetController: NSObject {
     }
 
     @objc private func groom() {
-        catView.wakeUp()
-        stats.adjust(happiness: 3, energy: -1)
-        catView.play(.groom, frameDuration: 0.15, loops: 2)
-        showBubble("把毛整理好")
+        perform(.groom)
     }
 
     @objc private func scratch() {
-        catView.wakeUp()
-        stats.adjust(happiness: 4, energy: -2)
-        catView.play(.scratch, frameDuration: 0.11, loops: 1)
-        showBubble("磨磨小爪子")
+        perform(.scratch)
     }
 
     @objc private func jump() {
-        catView.wakeUp()
-        stats.adjust(happiness: 3, energy: -2)
-        catView.play(.jump, frameDuration: 0.12, loops: 1)
-        showBubble("跳一下")
+        perform(.jump)
     }
 
     @objc private func sleep() {
-        catView.startSleeping()
-        showBubble("睡一小会儿")
+        perform(.sleep)
     }
 
     @objc private func roll() {
-        catView.wakeUp()
-        stats.adjust(happiness: 5, energy: -3)
-        catView.play(.roll, frameDuration: 0.12, loops: 1)
-        showBubble("打个滚")
+        perform(.roll)
     }
 
     @objc private func showStatus() {
@@ -507,25 +495,65 @@ final class PetController: NSObject {
     }
 
     @objc private func feed() {
-        catView.wakeUp()
-        stats.adjust(hunger: 18, happiness: 5, energy: 2)
-        catView.play(.groom, frameDuration: 0.13, loops: 1)
-        showBubble("小鱼干真好吃")
+        perform(.feed)
     }
 
     @objc private func playTogether() {
-        catView.wakeUp()
-        stats.adjust(hunger: -5, happiness: 16, energy: -8)
-        catView.runInteractionPreview()
-        nudgeAwayFromMouse()
-        showBubble("再玩一下")
+        perform(.play)
     }
 
     @objc private func pat() {
-        catView.wakeUp()
-        stats.adjust(happiness: 10, energy: 2)
-        catView.play(.blink, frameDuration: 0.1, loops: 2)
-        showBubble("呼噜呼噜")
+        perform(.pat)
+    }
+
+    func perform(_ command: PetCommand,
+                 updateStats: Bool = true,
+                 showFeedback: Bool = true) {
+        catView.cancelActionAndWake()
+        let feedback: String
+        switch command {
+        case .blink:
+            catView.play(.blink, frameDuration: 0.12, loops: 2)
+            feedback = "眨眨眼"
+        case .groom:
+            if updateStats { stats.adjust(happiness: 3, energy: -1) }
+            catView.play(.groom, frameDuration: 0.15, loops: 2)
+            feedback = "把毛整理好"
+        case .scratch:
+            if updateStats { stats.adjust(happiness: 4, energy: -2) }
+            catView.play(.scratch, frameDuration: 0.11, loops: 1)
+            feedback = "磨磨小爪子"
+        case .jump:
+            if updateStats { stats.adjust(happiness: 3, energy: -2) }
+            catView.play(.jump, frameDuration: 0.12, loops: 1)
+            feedback = "跳一下"
+        case .sleep:
+            catView.startSleeping()
+            feedback = "睡一小会儿"
+        case .roll:
+            if updateStats { stats.adjust(happiness: 5, energy: -3) }
+            catView.play(.roll, frameDuration: 0.12, loops: 1)
+            feedback = "打个滚"
+        case .feed:
+            if updateStats { stats.adjust(hunger: 18, happiness: 5, energy: 2) }
+            catView.play(.groom, frameDuration: 0.13, loops: 1)
+            feedback = "小鱼干真好吃"
+        case .play:
+            if updateStats { stats.adjust(hunger: -5, happiness: 16, energy: -8) }
+            catView.runInteractionPreview()
+            nudgeAwayFromMouse()
+            feedback = "再玩一下"
+        case .pat:
+            if updateStats { stats.adjust(happiness: 10, energy: 2) }
+            catView.play(.blink, frameDuration: 0.1, loops: 2)
+            feedback = "呼噜呼噜"
+        case .tap:
+            catView.runInteractionPreview()
+            feedback = "在呢"
+        }
+        if showFeedback {
+            showBubble(feedback)
+        }
     }
 
     @objc private func summonToMouse() {
