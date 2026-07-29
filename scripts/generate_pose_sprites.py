@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageFilter
 
 from generate_tianmiao_selected_assets import content_bbox, paper_to_alpha
 
@@ -57,6 +57,11 @@ def fit_pose(image: Image.Image) -> Image.Image:
             (round(resized.width * safety_scale), round(resized.height * safety_scale)),
             Image.Resampling.LANCZOS,
         )
+    # Contract the paper-derived alpha edge by two pixels. This removes the
+    # pale paper halo on dark desktops while preserving whiskers and paw tips.
+    alpha = resized.getchannel("A")
+    alpha = alpha.filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(0.18))
+    resized.putalpha(alpha)
     canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
     x = (CANVAS[0] - resized.width) // 2
     y = CANVAS[1] - resized.height - BOTTOM_PADDING

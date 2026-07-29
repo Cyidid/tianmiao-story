@@ -32,6 +32,7 @@ if [[ ! "${APP_BUILD:-}" =~ ^[1-9][0-9]*$ ]]; then
 fi
 "$PYTHON_BIN" "$ROOT_DIR/scripts/generate_rig_parts.py"
 "$PYTHON_BIN" "$ROOT_DIR/scripts/generate_pose_sprites.py"
+"$PYTHON_BIN" "$ROOT_DIR/scripts/verify_pose_assets.py"
 
 mkdir -p "$BUILD_ROOT" "$ROOT_DIR/build"
 
