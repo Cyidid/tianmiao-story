@@ -32,6 +32,19 @@ enum PetAction: String {
     case roll
 }
 
+enum PetCommand: String {
+    case blink
+    case groom
+    case scratch
+    case jump
+    case sleep
+    case roll
+    case feed
+    case play
+    case pat
+    case tap
+}
+
 struct PetSettings {
     static let modeKey = "mode"
     static let scaleKey = "scale"

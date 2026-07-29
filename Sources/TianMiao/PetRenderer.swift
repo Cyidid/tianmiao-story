@@ -29,6 +29,7 @@ final class CatView: NSView {
     private var currentAction: PetAction?
     private var poseFrames: [PetMood: [CGImage]] = [:]
     private var walkPoseFrames: [CGImage] = []
+    private var poseTimer: Timer?
     private var settleTimer: Timer?
     private var isWalking = false
     private var wasDragged = false
@@ -89,9 +90,9 @@ final class CatView: NSView {
         configurePart(rightPawLayer, anchor: CGPoint(x: 0.69, y: 0.31))
         configurePart(headLayer, anchor: CGPoint(x: 0.52, y: 0.39))
         configureBlinkLayer(leftBlinkLayer, line: leftBlinkLine,
-                            sourceRect: CGRect(x: 128, y: 151, width: 62, height: 64))
+                            sourceRect: CGRect(x: 141, y: 136, width: 36, height: 38))
         configureBlinkLayer(rightBlinkLayer, line: rightBlinkLine,
-                            sourceRect: CGRect(x: 202, y: 105, width: 68, height: 68))
+                            sourceRect: CGRect(x: 218, y: 135, width: 28, height: 35))
         configurePart(walkTailLayer, anchor: CGPoint(x: 0.23, y: 0.37))
         configurePart(walkRearLegLayer, anchor: CGPoint(x: 0.29, y: 0.30))
         configurePart(walkHindLegLayer, anchor: CGPoint(x: 0.45, y: 0.30))
@@ -171,15 +172,15 @@ final class CatView: NSView {
         line.strokeColor = NSColor(calibratedWhite: 0.14, alpha: 1).cgColor
         line.lineCap = .round
         eyelid.addSublayer(line)
-        headLayer.addSublayer(eyelid)
+        poseLayer.addSublayer(eyelid)
     }
 
     private func configureBlinkLayer(_ eyelid: CALayer, line: CAShapeLayer, sourceRect: CGRect) {
-        let sourceSize = CGSize(width: 360, height: 392)
-        let scale = min(headLayer.bounds.width / sourceSize.width,
-                        headLayer.bounds.height / sourceSize.height)
-        let offsetX = (headLayer.bounds.width - sourceSize.width * scale) / 2
-        let offsetY = (headLayer.bounds.height - sourceSize.height * scale) / 2
+        let sourceSize = CGSize(width: 420, height: 420)
+        let scale = min(poseLayer.bounds.width / sourceSize.width,
+                        poseLayer.bounds.height / sourceSize.height)
+        let offsetX = (poseLayer.bounds.width - sourceSize.width * scale) / 2
+        let offsetY = (poseLayer.bounds.height - sourceSize.height * scale) / 2
         eyelid.frame = CGRect(x: offsetX + sourceRect.minX * scale,
                               y: offsetY + (sourceSize.height - sourceRect.maxY) * scale,
                               width: sourceRect.width * scale,
@@ -257,23 +258,46 @@ final class CatView: NSView {
                                 duration: TimeInterval,
                                 repeatForever: Bool = false) {
         guard !frames.isEmpty else { return }
-        poseLayer.removeAnimation(forKey: "poseTimeline")
+        poseTimer?.invalidate()
+        poseTimer = nil
+        func display(_ frame: CGImage) {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            poseLayer.contents = frame
+            CATransaction.commit()
+        }
         if let progressText = ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_PROGRESS"],
            let progress = Double(progressText) {
             let clamped = min(1, max(0, progress))
             let index = min(frames.count - 1, Int(Double(frames.count) * clamped))
-            poseLayer.contents = frames[index]
+            display(frames[index])
             return
         }
-        poseLayer.contents = frames.last
+        display(frames[0])
         guard frames.count > 1 else { return }
-        let animation = CAKeyframeAnimation(keyPath: "contents")
-        animation.values = frames
-        animation.duration = duration
-        animation.calculationMode = .discrete
-        animation.repeatCount = repeatForever ? .infinity : 0
-        animation.isRemovedOnCompletion = !repeatForever
-        poseLayer.add(animation, forKey: "poseTimeline")
+        var index = 0
+        let interval = max(1.0 / 60.0, duration / Double(frames.count))
+        let timer = Timer(timeInterval: interval, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+            if index + 1 < frames.count {
+                index += 1
+            } else if repeatForever {
+                index = 0
+            } else {
+                timer.invalidate()
+                self.poseTimer = nil
+                return
+            }
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            self.poseLayer.contents = frames[index]
+            CATransaction.commit()
+        }
+        poseTimer = timer
+        RunLoop.main.add(timer, forMode: .common)
     }
 
     private func showPose(_ mood: PetMood,
@@ -353,7 +377,7 @@ final class CatView: NSView {
     }
 
     func startSleeping(for duration: TimeInterval? = nil) {
-        guard currentMood == .idle || currentMood == .blink else { return }
+        guard currentMood != .sleep else { return }
         settleTimer?.invalidate()
         isWalking = false
         currentMood = .sleep
@@ -375,18 +399,26 @@ final class CatView: NSView {
         showMood(.idle)
     }
 
+    func cancelActionAndWake() {
+        settleTimer?.invalidate()
+        showMood(.idle)
+    }
+
     private func clearActionMotion() {
+        poseTimer?.invalidate()
+        poseTimer = nil
         rigLayer.removeAllAnimations()
         sittingCoreLayer.removeAllAnimations()
         walkCoreLayer.removeAllAnimations()
         shadowLayer.removeAllAnimations()
-        poseLayer.removeAnimation(forKey: "poseTimeline")
+        poseLayer.removeAllAnimations()
         partLayers.forEach { $0.removeAllAnimations() }
         leftBlinkLayer.removeAllAnimations()
         rightBlinkLayer.removeAllAnimations()
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         rigLayer.transform = CATransform3DIdentity
+        poseLayer.transform = CATransform3DIdentity
         sittingCoreLayer.transform = CATransform3DIdentity
         walkCoreLayer.transform = CATransform3DIdentity
         partLayers.forEach { $0.transform = CATransform3DIdentity }
@@ -430,11 +462,15 @@ final class CatView: NSView {
                 additive: false, key: "leftBlink")
             add(rightBlinkLayer, "opacity", [0, 0, 1, 1, 0, 0], total, blinkTimes,
                 additive: false, key: "rightBlink")
-            add(headLayer, "transform.translation.y", [0, 0, -0.8, 0, 0], total, times)
-            add(headLayer, "transform.rotation.z", [0, 0.008, 0.014, 0.008, 0], total, times)
+            add(poseLayer, "transform.translation.y", [0, 0, -0.8, 0, 0], total, times)
         case .react:
-            break
+            let times: [NSNumber] = [0, 0.2, 0.46, 0.72, 1]
+            add(poseLayer, "transform.translation.y", [0, -2, 5, 1.5, 0], total, times)
+            add(poseLayer, "transform.scale", [1, 0.98, 1.025, 1.008, 1], total, times,
+                additive: false)
         case .groom:
+            add(poseLayer, "transform.translation.y", [0, 1, 0, 1, 0, 0, 0], total,
+                [0, 0.2, 0.38, 0.56, 0.74, 0.9, 1])
             let pawLift = max(11, bounds.height * 0.12)
             let times: [NSNumber] = [0, 0.2, 0.38, 0.56, 0.74, 0.9, 1]
             add(leftPawLayer, "transform.translation.y", [0, pawLift * 0.72, pawLift, pawLift * 0.78, pawLift, pawLift * 0.65, 0], total, times)
@@ -447,6 +483,10 @@ final class CatView: NSView {
             add(tailLayer, "transform.rotation.z", [0, 0.05, -0.035, 0.05, -0.035, 0.025, 0], total, times)
         case .scratch:
             let times: [NSNumber] = [0, 0.1, 0.2, 0.32, 0.44, 0.56, 0.68, 0.8, 0.9, 1]
+            add(poseLayer, "transform.translation.x", [0, -1, 1, -1, 1, -1, 1, -1, 0.5, 0],
+                total, times)
+            add(poseLayer, "transform.translation.y", [0, -1, 0, -1, 0, -1, 0, -1, 0, 0],
+                total, times)
             add(rigLayer, "transform.translation.y", [0, -1, -1.5, -1.5, -1.5, -1.5, -1.5, -1, -0.5, 0], total, times)
             add(bodyLayer, "transform.scale.y", [1, 0.985, 0.98, 0.985, 0.98, 0.985, 0.98, 0.987, 0.995, 1],
                 total, times, additive: false)
@@ -466,6 +506,10 @@ final class CatView: NSView {
         case .jump:
             let lift = max(13, bounds.height * 0.18)
             let times: [NSNumber] = [0, 0.16, 0.3, 0.5, 0.68, 0.84, 1]
+            add(poseLayer, "transform.translation.y",
+                [0, -3, lift * 0.78, lift, lift * 0.72, -2, 0], total, times)
+            add(poseLayer, "transform.scale.y",
+                [1, 0.95, 1.025, 1.015, 1.02, 0.97, 1], total, times, additive: false)
             add(rigLayer, "transform.translation.y",
                 [0, -3, lift * 0.78, lift, lift * 0.72, -2, 0], total, times)
             add(bodyLayer, "transform.scale.y",
@@ -490,10 +534,10 @@ final class CatView: NSView {
                            keyTimes: times)
         case .sleep:
             let forever = Float.infinity
-            add(leftBlinkLayer, "opacity", [1, 1], 3.2,
-                additive: false, repeatCount: forever, key: "sleepLeftEye")
-            add(rightBlinkLayer, "opacity", [1, 1], 3.2,
-                additive: false, repeatCount: forever, key: "sleepRightEye")
+            add(poseLayer, "transform.scale.y", [0.992, 1.006, 0.992], 3.2,
+                additive: false, repeatCount: forever, key: "sleepBreath")
+            add(poseLayer, "transform.translation.y", [0, -0.8, 0], 3.2,
+                repeatCount: forever, key: "sleepWeight")
             add(sittingCoreLayer, "transform.translation.y", [0, -1.2, 0], 3.2,
                 repeatCount: forever, key: "sleepWeight")
             add(bodyLayer, "transform.scale.y", [0.975, 0.995, 0.975], 3.2,
@@ -514,6 +558,10 @@ final class CatView: NSView {
                            repeatForever: true)
         case .roll:
             let times: [NSNumber] = [0, 0.12, 0.25, 0.4, 0.56, 0.72, 0.86, 1]
+            add(poseLayer, "transform.translation.x",
+                [0, -2, -5, -7, -5, -2, 1, 0], total, times)
+            add(poseLayer, "transform.translation.y",
+                [0, -1, 1, 3, 2, 1, -0.5, 0], total, times)
             add(sittingCoreLayer, "transform.translation.x",
                 [0, -2, -4, -5, -4, -2, 0.5, 0], total, times)
             add(sittingCoreLayer, "transform.translation.y",
@@ -561,6 +609,10 @@ final class CatView: NSView {
     }
 
     private func startIdleMotion() {
+        add(poseLayer, "transform.translation.y", [0, 0.7, 0], 2.7,
+            repeatCount: .infinity, key: "idleWeight")
+        add(poseLayer, "transform.scale.y", [0.998, 1.006, 0.998], 2.7,
+            additive: false, repeatCount: .infinity, key: "idleBreath")
         add(sittingCoreLayer, "transform.translation.y", [0, 0.6, 0], 2.7,
             repeatCount: .infinity, key: "idleWeight")
         add(bodyLayer, "transform.scale.y", [0.998, 1.01, 0.998], 2.7,
@@ -585,6 +637,8 @@ final class CatView: NSView {
         currentAction = nil
         setWalkingPose(true, animated: true)
         showPoseFrames(walkPoseFrames, duration: 0.72, repeatForever: true)
+        add(poseLayer, "transform.translation.y", [0, 1.3, 0, 1.3, 0], 0.72,
+            [0, 0.25, 0.5, 0.75, 1], repeatCount: .infinity, key: "walkBounce")
         let forever = Float.infinity
         let duration: TimeInterval = 0.86
         let phases: [NSNumber] = [0, 0.2, 0.5, 0.7, 1]
@@ -656,6 +710,11 @@ final class CatView: NSView {
         let total: TimeInterval = 0.72
         let times: [NSNumber] = [0, 0.16, 0.42, 0.72, 1]
 
+        add(poseLayer, "transform.translation.x",
+            [0, direction * 2, direction * 4, direction, 0], total, times)
+        add(poseLayer, "transform.translation.y", [0, -1.5, 4, 1, 0], total, times)
+        add(poseLayer, "transform.scale", [1, 0.98, 1.025, 1.008, 1], total, times,
+            additive: false)
         add(headLayer, "transform.rotation.z",
             [0, direction * 0.025, direction * 0.04, -direction * 0.012, 0], total, times)
         add(headLayer, "transform.translation.x",
@@ -686,6 +745,9 @@ final class CatView: NSView {
         clearActionMotion()
         let total: TimeInterval = 0.46
         let times: [NSNumber] = [0, 0.28, 0.62, 1]
+        add(poseLayer, "transform.translation.y", [4, -2, 1, 0], total, times)
+        add(poseLayer, "transform.scale.y", [1.02, 0.975, 1.008, 1], total, times,
+            additive: false)
         add(rigLayer, "transform.translation.y", [4, -2, 1, 0], total, times)
         add(bodyLayer, "transform.scale.y", [1.02, 0.975, 1.008, 1], total, times, additive: false)
         add(leftPawLayer, "transform.rotation.z", [-0.04, 0.035, -0.012, 0], total, times)
@@ -741,12 +803,14 @@ final class CatView: NSView {
 
         CATransaction.begin()
         CATransaction.setDisableActions(true)
+        poseLayer.transform = transform
         rigLayer.transform = transform
         shadowLayer.opacity = Float(0.6 + min(0.12, abs(limitedX) * 0.1))
         CATransaction.commit()
     }
 
     override func mouseDown(with event: NSEvent) {
+        cancelActionAndWake()
         dragStartPoint = event.locationInWindow
         dragStartWindowOrigin = window?.frame.origin ?? .zero
         wasDragged = false
@@ -786,16 +850,4 @@ final class CatView: NSView {
         reactToClick(at: NSPoint(x: bounds.midX * 0.72, y: bounds.midY))
     }
 
-    func runActionPreview(named name: String) {
-        switch name {
-        case "blink": play(.blink, frameDuration: 0.12, loops: 2)
-        case "groom": play(.groom, frameDuration: 0.15, loops: 1)
-        case "scratch": play(.scratch, frameDuration: 0.11, loops: 1)
-        case "jump": play(.jump, frameDuration: 0.12, loops: 1)
-        case "sleep": startSleeping()
-        case "roll": play(.roll, frameDuration: 0.12, loops: 1)
-        case "tap": runInteractionPreview()
-        default: break
-        }
-    }
 }
