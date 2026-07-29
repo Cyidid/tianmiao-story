@@ -3,3 +3,4 @@ dist/
 *.log
 __pycache__/
 /甜喵物语.app/
+/Resources/Poses/

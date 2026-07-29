@@ -31,6 +31,7 @@ if [[ ! "${APP_BUILD:-}" =~ ^[1-9][0-9]*$ ]]; then
   exit 1
 fi
 "$PYTHON_BIN" "$ROOT_DIR/scripts/generate_rig_parts.py"
+"$PYTHON_BIN" "$ROOT_DIR/scripts/generate_pose_sprites.py"
 
 mkdir -p "$BUILD_ROOT" "$ROOT_DIR/build"
 

@@ -59,6 +59,6 @@ Sparkle 2.9.4 仍作为实验发布工具保留。v3.21 已降为预发布并撤
 - `Sources/TianMiao/PetWindows.swift`：透明桌宠窗口和气泡。
 - `Sources/TianMiao/PetController.swift`：交互、菜单与行为调度。
 - `Sources/TianMiao/main.swift`：应用入口。
-- `Resources/Poses/`：正式运行的 25 张全身透明姿态。
+- `Resources/Poses/`：构建时由已提交母图确定性生成的 25 张全身透明姿态。
 - `Experimental/Live2D/`：不参与构建的实验资料。
 - `scripts/`：构建、发布、素材生成和验收脚本。
