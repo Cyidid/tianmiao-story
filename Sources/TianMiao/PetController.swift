@@ -1,6 +1,5 @@
 import Cocoa
 import ServiceManagement
-import Sparkle
 import UserNotifications
 
 final class PetController: NSObject {
@@ -20,11 +19,6 @@ final class PetController: NSObject {
     private var settings = PetSettings.load()
     private var stats = PetStats.load()
     private var focusSession = FocusSession.load()
-    private let updaterController = SPUStandardUpdaterController(
-        startingUpdater: true,
-        updaterDelegate: nil,
-        userDriverDelegate: nil
-    )
     private let baseSize = NSSize(width: 360, height: 392)
     func start() {
         let size = currentSize()
@@ -77,7 +71,7 @@ final class PetController: NSObject {
         }
         if ProcessInfo.processInfo.environment["TIANMIAO_PREVIEW_UPDATE_CHECK"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-                self?.updaterController.checkForUpdates(nil)
+                self?.checkLatestRelease()
             }
         }
     }
@@ -119,12 +113,11 @@ final class PetController: NSObject {
                           action: #selector(toggleLaunchAtLogin),
                           checked: SMAppService.mainApp.status == .enabled))
         let updateItem = NSMenuItem(
-            title: "检查更新…",
-            action: #selector(SPUStandardUpdaterController.checkForUpdates(_:)),
+            title: "检查新版…",
+            action: #selector(checkLatestRelease),
             keyEquivalent: ""
         )
-        updateItem.target = updaterController
-        updateItem.isEnabled = updaterController.updater.canCheckForUpdates
+        updateItem.target = self
         menu.addItem(updateItem)
         if focusSession.isActive {
             let focusStatus = NSMenuItem(title: focusSession.remainingLine, action: nil, keyEquivalent: "")
@@ -596,6 +589,16 @@ final class PetController: NSObject {
             }
         } catch {
             showBubble("登录启动设置失败：\(error.localizedDescription)", seconds: 5.0)
+        }
+    }
+
+    @objc private func checkLatestRelease() {
+        guard let url = URL(string: "https://github.com/Cyidid/tianmiao-story/releases/latest") else {
+            showBubble("新版页面地址无效")
+            return
+        }
+        if !NSWorkspace.shared.open(url) {
+            showBubble("无法打开新版页面")
         }
     }
 

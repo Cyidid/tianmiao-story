@@ -20,9 +20,9 @@ macOS 13.0；在录屏、状态和升级测试全部通过前不会作为正式�
 
 ## 自动更新边界
 
-Sparkle 2.9.4 仍作为候选更新方案。v3.21 已降为预发布并撤出正式 appcast。隔离测试已验证
-v3.21 → v3.22 的 Ed25519 下载、替换和重启，也验证了篡改包、错误签名、404 和只读安装目录
-不会破坏旧版本。
+Sparkle 2.9.4 仍作为实验发布工具保留。v3.21 已降为预发布并撤出正式 appcast。由于当前
+发布环境无法稳定访问更新私钥，v3.22 正式运行包不包含 Sparkle，也不会后台下载安装。
+菜单“检查新版”会打开 GitHub Releases。
 
 项目不使用 Developer ID，因此首次打开仍可能出现 Gatekeeper 提示。Sparkle 的 Ed25519
 签名只验证更新包来自本项目且未被篡改，不等同于 Apple 身份签名或公证。
@@ -35,9 +35,7 @@ v3.21 → v3.22 的 Ed25519 下载、替换和重启，也验证了篡改包、�
 ./scripts/build_app.sh
 ```
 
-首次构建会下载并校验固定版本的 Sparkle 2.9.4。版本号统一维护在
-`Config/version.env`，公开更新配置位于 `Config/sparkle.env`。更新私钥只保存在发布者
-Keychain，禁止写入仓库。
+正式构建不下载或嵌入 Sparkle。版本号统一维护在 `Config/version.env`。
 
 普通手动包：
 
@@ -45,7 +43,7 @@ Keychain，禁止写入仓库。
 ./scripts/package_release.sh
 ```
 
-正式 Sparkle 包会先检查全部透明动作素材，再进行构建、签名和 appcast 生成：
+实验 Sparkle 包工具仍保留，但不用于本次正式发布：
 
 ```bash
 ./scripts/package_signed_release.sh

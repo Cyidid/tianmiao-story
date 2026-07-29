@@ -4,7 +4,6 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 VERSION_FILE="$ROOT_DIR/Config/version.env"
-SPARKLE_CONFIG_FILE="$ROOT_DIR/Config/sparkle.env"
 APP_DIR="$ROOT_DIR/甜喵物语.app"
 BUILD_ROOT="${TMPDIR:-/tmp}/tianmiao-build.$$"
 BUILD_APP_DIR="$BUILD_ROOT/甜喵物语.app"
@@ -31,19 +30,6 @@ if [[ ! "${APP_BUILD:-}" =~ ^[1-9][0-9]*$ ]]; then
   echo "APP_BUILD must be a positive integer." >&2
   exit 1
 fi
-if [ ! -f "$SPARKLE_CONFIG_FILE" ]; then
-  echo "Missing Sparkle configuration: $SPARKLE_CONFIG_FILE" >&2
-  exit 1
-fi
-# shellcheck source=/dev/null
-source "$SPARKLE_CONFIG_FILE"
-if [ -z "${SPARKLE_PUBLIC_ED_KEY:-}" ] || [ -z "${SPARKLE_FEED_URL:-}" ]; then
-  echo "Sparkle public key and feed URL are required." >&2
-  exit 1
-fi
-SPARKLE_ROOT="$("$ROOT_DIR/scripts/fetch_sparkle.sh")"
-SPARKLE_FRAMEWORK="$SPARKLE_ROOT/Sparkle.framework"
-
 "$PYTHON_BIN" "$ROOT_DIR/scripts/generate_rig_parts.py"
 
 mkdir -p "$BUILD_ROOT" "$ROOT_DIR/build"
@@ -83,20 +69,15 @@ APP_DIR="$BUILD_APP_DIR"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 RESOURCES_DIR="$CONTENTS_DIR/Resources"
-FRAMEWORKS_DIR="$CONTENTS_DIR/Frameworks"
 
-mkdir -p "$MACOS_DIR" "$RESOURCES_DIR" "$FRAMEWORKS_DIR"
+mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 
 swiftc "${SOURCE_FILES[@]}" \
   -target arm64-apple-macos13.0 \
-  -F "$SPARKLE_ROOT" \
   -framework Cocoa \
   -framework QuartzCore \
   -framework ServiceManagement \
-  -framework Sparkle \
   -framework UserNotifications \
-  -Xlinker -rpath \
-  -Xlinker @executable_path/../Frameworks \
   -o "$MACOS_DIR/tianmiao"
 
 find "$RESOURCES_DIR" -type f -name '*.png' -delete
@@ -108,12 +89,6 @@ if [ -d "$ROOT_DIR/Resources/Poses" ]; then
   COPYFILE_DISABLE=1 cp -R "$ROOT_DIR/Resources/Poses" "$RESOURCES_DIR/Poses"
 fi
 COPYFILE_DISABLE=1 cp "$ROOT_DIR/Resources/AppIcon.icns" "$RESOURCES_DIR/AppIcon.icns"
-
-# Synced folders may attach FinderInfo/file-provider attributes to nested
-# Sparkle bundles. A metadata-free tar stream preserves symlinks and executable
-# modes while preventing those attributes from invalidating strict codesign.
-COPYFILE_DISABLE=1 tar -C "$SPARKLE_ROOT" -cf - Sparkle.framework |
-  COPYFILE_DISABLE=1 tar -C "$FRAMEWORKS_DIR" -xf -
 
 cat > "$CONTENTS_DIR/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -147,14 +122,6 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
   <string>alert</string>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
-  <key>SUEnableAutomaticChecks</key>
-  <true/>
-  <key>SUScheduledCheckInterval</key>
-  <integer>86400</integer>
-  <key>SUFeedURL</key>
-  <string>$SPARKLE_FEED_URL</string>
-  <key>SUPublicEDKey</key>
-  <string>$SPARKLE_PUBLIC_ED_KEY</string>
 </dict>
 </plist>
 PLIST

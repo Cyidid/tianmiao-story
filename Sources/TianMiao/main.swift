@@ -1,7 +1,6 @@
 import Cocoa
 import QuartzCore
 import ServiceManagement
-import Sparkle
 import UserNotifications
 
 
