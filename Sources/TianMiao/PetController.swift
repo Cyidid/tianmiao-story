@@ -27,11 +27,6 @@ final class PetController: NSObject {
         catView = CatView(frame: NSRect(origin: .zero, size: size), controller: self)
         window.contentView = catView
 
-        let singleClick = NSClickGestureRecognizer(target: catView, action: #selector(CatView.clickReact))
-        singleClick.numberOfClicksRequired = 1
-        singleClick.delaysPrimaryMouseButtonEvents = false
-        catView.addGestureRecognizer(singleClick)
-
         window.makeKeyAndOrderFront(nil)
         startMovement()
         startAmbientBehaviors()

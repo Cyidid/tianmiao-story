@@ -33,7 +33,7 @@ final class CatView: NSView {
     private var settleTimer: Timer?
     private var isWalking = false
     private var wasDragged = false
-    private var dragStartPoint: NSPoint = .zero
+    private var dragStartScreenPoint: NSPoint = .zero
     private var dragStartWindowOrigin: NSPoint = .zero
     private weak var controller: PetController?
 
@@ -60,6 +60,10 @@ final class CatView: NSView {
 
     var isSleeping: Bool {
         currentMood == .sleep
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
     }
 
     init(frame: NSRect, controller: PetController) {
@@ -811,7 +815,7 @@ final class CatView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         cancelActionAndWake()
-        dragStartPoint = event.locationInWindow
+        dragStartScreenPoint = NSEvent.mouseLocation
         dragStartWindowOrigin = window?.frame.origin ?? .zero
         wasDragged = false
         controller?.pauseMovement()
@@ -819,9 +823,9 @@ final class CatView: NSView {
 
     override func mouseDragged(with event: NSEvent) {
         guard let window else { return }
-        let current = event.locationInWindow
-        let dx = current.x - dragStartPoint.x
-        let dy = current.y - dragStartPoint.y
+        let current = NSEvent.mouseLocation
+        let dx = current.x - dragStartScreenPoint.x
+        let dy = current.y - dragStartScreenPoint.y
         if hypot(dx, dy) > 3 {
             wasDragged = true
         }
@@ -832,6 +836,8 @@ final class CatView: NSView {
         controller?.resumeMovementAfterInteraction()
         if wasDragged {
             settleAfterDrag()
+        } else {
+            clickReact()
         }
     }
 
