@@ -15,7 +15,7 @@
 - 版本：3.22（构建 54）
 - 架构：arm64
 - 最低系统：macOS 13.0
-- SHA-256：`fe808d6263e84b4995360211cc3b611b4d0da1ba7f6947c7bef8d1e41500f9b3`
+- SHA-256：`1f0d4a148f1a1f8d6fb73ba98629fb91065896c228fea9e8484668523fc5dda0`
 - 项目暂未使用 Developer ID 签名与 Apple 公证，首次打开可能出现 Gatekeeper 提示。
 
 ## v3.21
