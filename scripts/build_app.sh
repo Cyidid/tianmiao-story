@@ -105,7 +105,7 @@ cat > "$CONTENTS_DIR/Info.plist" <<PLIST
   <key>CFBundleIconFile</key>
   <string>AppIcon</string>
   <key>CFBundleIdentifier</key>
-  <string>com.jiujiu.catpet21</string>
+  <string>com.cyidid.tianmiao</string>
   <key>CFBundleName</key>
   <string>甜喵物语</string>
   <key>CFBundlePackageType</key>
